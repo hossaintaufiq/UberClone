@@ -31,6 +31,8 @@ app.use("/api/auth", require("./routes/auth"));
 app.use("/api/riders", require("./routes/riders"));
 app.use("/api/users", require("./routes/riders"));
 app.use("/api/drivers", require("./routes/drivers"));
+app.use("/api/user", require("./routes/riders"));
+app.use("/api/driver", require("./routes/drivers"));
 app.use("/api/rides", require("./routes/rides"));
 app.use("/api/complaints", require("./routes/complaints"));
 app.use("/api/admin", require("./routes/admin"));

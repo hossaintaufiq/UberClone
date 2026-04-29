@@ -12,6 +12,7 @@ router.put('/profile',       upload.uploadPhoto, driver.updateProfile);
 router.patch('/go-online',   driver.toggleOnline);
 router.patch('/location',    driver.updateLocation);
 router.get('/rides',         driver.getRides);
+router.get('/ride-requests', driver.getRideRequests);
 router.get('/earnings',      driver.getEarnings);
 router.post('/documents',    upload.uploadDocument, driver.uploadDocument);
 router.get('/documents',     driver.getDocuments);

@@ -20,7 +20,12 @@ const saveUserWithOtp = async ({ role, name, email, phone, password }) => {
 
 const login = async (res, role, identifier, password) => {
   const normalized = String(identifier || "").trim();
-  const query = { role, isActive: true };
+  const query = { isActive: true };
+  if (Array.isArray(role)) {
+    query.role = { $in: role };
+  } else {
+    query.role = role;
+  }
 
   if (normalized.includes("@")) {
     query.email = normalized.toLowerCase();
@@ -42,8 +47,8 @@ const login = async (res, role, identifier, password) => {
 
 exports.riderRegister = async (req, res) => {
   try {
-    const user = await saveUserWithOtp({ role: "rider", ...req.body });
-    res.status(201).json({ success: true, message: "Rider registered", otp: user.otp });
+    const user = await saveUserWithOtp({ role: "user", ...req.body });
+    res.status(201).json({ success: true, message: "User registered", otp: user.otp });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -59,7 +64,7 @@ exports.driverRegister = async (req, res) => {
 };
 
 exports.riderLogin = async (req, res) =>
-  login(res, "rider", req.body.identifier || req.body.phone || req.body.email, req.body.password);
+  login(res, ["user", "rider"], req.body.identifier || req.body.phone || req.body.email, req.body.password);
 exports.driverLogin = async (req, res) =>
   login(res, "driver", req.body.identifier || req.body.phone || req.body.email, req.body.password);
 
@@ -77,7 +82,7 @@ exports.adminLogin = async (req, res) => {
 
 exports.riderVerifyOTP = async (req, res) => {
   const { phone, otp } = req.body;
-  const user = await User.findOne({ role: "rider", phone });
+  const user = await User.findOne({ role: { $in: ["user", "rider"] }, phone });
   if (!user || user.otp !== otp || !user.otpExpiresAt || user.otpExpiresAt < new Date()) {
     return res.status(400).json({ success: false, message: "Invalid or expired OTP." });
   }
@@ -100,7 +105,7 @@ exports.driverVerifyOTP = async (req, res) => {
 };
 
 exports.riderForgotPassword = async (req, res) => {
-  const user = await User.findOne({ role: "rider", phone: req.body.phone });
+  const user = await User.findOne({ role: { $in: ["user", "rider"] }, phone: req.body.phone });
   if (!user) return res.status(404).json({ success: false, message: "Rider not found." });
   user.otp = generateOTP();
   user.otpExpiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
@@ -110,7 +115,7 @@ exports.riderForgotPassword = async (req, res) => {
 
 exports.riderResetPassword = async (req, res) => {
   const { phone, otp, new_password } = req.body;
-  const user = await User.findOne({ role: "rider", phone });
+  const user = await User.findOne({ role: { $in: ["user", "rider"] }, phone });
   if (!user || user.otp !== otp || !user.otpExpiresAt || user.otpExpiresAt < new Date()) {
     return res.status(400).json({ success: false, message: "Invalid or expired OTP." });
   }

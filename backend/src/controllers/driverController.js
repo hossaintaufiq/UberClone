@@ -20,6 +20,7 @@ exports.updateProfile = async (req, res) => {
 
 exports.toggleOnline = async (req, res) => {
   const driver = await User.findById(req.user.id);
+  if (!driver.approved) return res.status(403).json({ success: false, message: "Driver approval pending from admin." });
   driver.isOnline = !driver.isOnline;
   await driver.save();
   res.json({ success: true, message: "Online status updated", is_online: driver.isOnline });
@@ -38,10 +39,20 @@ exports.getRides = async (req, res) => {
   res.json({ success: true, data: rides });
 };
 
+exports.getRideRequests = async (_, res) => {
+  const rides = await Ride.find({ status: "requested", $or: [{ driverId: { $exists: false } }, { driverId: null }] }).sort({ createdAt: -1 }).limit(20);
+  res.json({ success: true, data: rides });
+};
+
 exports.getEarnings = async (req, res) => {
   const rides = await Ride.find({ driverId: req.user.id, status: "completed" });
   const total = rides.reduce((sum, ride) => sum + Number(ride.fare || 0), 0);
-  res.json({ success: true, data: { total_earnings: total, completed_rides: rides.length } });
+  const now = Date.now();
+  const dayAgo = new Date(now - 24 * 60 * 60 * 1000);
+  const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  const daily = rides.filter((r) => r.createdAt >= dayAgo).reduce((sum, r) => sum + Number(r.driverEarning || r.fare || 0), 0);
+  const weekly = rides.filter((r) => r.createdAt >= weekAgo).reduce((sum, r) => sum + Number(r.driverEarning || r.fare || 0), 0);
+  res.json({ success: true, data: { total_earnings: total, completed_rides: rides.length, daily_earnings: daily, weekly_earnings: weekly } });
 };
 
 exports.uploadDocument = async (req, res) => {

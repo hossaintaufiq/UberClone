@@ -15,8 +15,8 @@ const serviceCards = [
     description: 'Real-time dispatching, route health, and vehicle utilization analytics for city-scale operations.',
   },
   {
-    title: 'Digital Rider Services',
-    description: 'Unified rider onboarding, booking, payment, and support with secure identity controls.',
+    title: 'Digital User Services',
+    description: 'Unified user onboarding, booking, payment, and support with secure identity controls.',
   },
   {
     title: 'Compliance & Safety',
@@ -32,9 +32,9 @@ const timeline = [
 ]
 
 const riderOnboardingSteps = [
-  { step: '01', title: 'Create Rider Account', description: 'Open Rider Registration, enter your basic details, and submit securely.' },
+  { step: '01', title: 'Create User Account', description: 'Open User Registration, enter your basic details, and submit securely.' },
   { step: '02', title: 'Verify and Sign In', description: 'Use your registered credentials to sign in from Rider Login instantly.' },
-  { step: '03', title: 'Request Your First Ride', description: 'Set pickup and destination in Rider App, confirm fare, and track driver live.' },
+  { step: '03', title: 'Request Your First Ride', description: 'Set pickup and destination in User App, confirm fare, and track driver live.' },
 ]
 
 const usageTips = [
@@ -82,6 +82,9 @@ export default function HomePage() {
             <Link to="/driver/login" className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline transition-colors hover:border-[#2f9edf] hover:text-[#2f9edf]">
               Driver Login
             </Link>
+            <Link to="/driver/register" className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline transition-colors hover:border-[#2f9edf] hover:text-[#2f9edf]">
+              Driver Registration
+            </Link>
           </div>
 
           <button
@@ -115,22 +118,33 @@ export default function HomePage() {
               <Link to="/driver/login" onClick={() => setMobileMenuOpen(false)} className="rounded-full border border-[#bfd4e4] px-4 py-2 text-center text-sm font-semibold text-[#1e445f] no-underline">
                 Driver Login
               </Link>
+              <Link to="/driver/register" onClick={() => setMobileMenuOpen(false)} className="rounded-full border border-[#bfd4e4] px-4 py-2 text-center text-sm font-semibold text-[#1e445f] no-underline">
+                Driver Registration
+              </Link>
             </nav>
           </div>
         ) : null}
       </header>
 
-      <section className="mx-auto grid w-full max-w-[1180px] gap-8 px-4 py-10 sm:px-5 md:grid-cols-[1fr_420px] md:items-center md:gap-10 md:py-12">
+      <section className="mx-auto grid w-full max-w-[1180px] gap-7 px-4 py-8 sm:px-5 md:gap-8 md:py-12">
         <div>
           <div className="mb-5 inline-flex rounded-full bg-[#cde7f9] px-4 py-1 text-xs font-bold tracking-[0.12em] text-[#2f6690]">
             ENTERPRISE PORTAL
           </div>
-          <h1 className="m-0 max-w-[530px] text-4xl font-bold leading-[1.1] text-[#18232d] md:text-5xl md:leading-[1.08]">
+          <h1 className="m-0 max-w-[760px] text-4xl font-bold leading-[1.1] text-[#18232d] md:text-5xl md:leading-[1.08]">
             Powering Bangladesh&apos;s <span className="text-[#0f84bf]">Transit</span> Future.
           </h1>
-          <p className="mt-5 max-w-[560px] text-lg leading-7 text-[#4f6070] md:mt-6 md:text-xl md:leading-8">
+          <p className="mt-5 max-w-[760px] text-lg leading-7 text-[#4f6070] md:mt-6 md:text-xl md:leading-8">
             Access the mission control center for Transitely&apos;s nationwide logistics and public transport infrastructure.
           </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link to="/user/register" className="rounded-full bg-[#1092ce] px-5 py-2.5 text-sm font-semibold text-white no-underline shadow-[0_10px_18px_rgba(16,146,206,0.24)] transition-colors hover:bg-[#0d80b4]">
+              Get Started as User
+            </Link>
+            <Link to="/driver/register" className="rounded-full border border-[#b8d5ea] bg-white px-5 py-2.5 text-sm font-semibold text-[#255472] no-underline transition-colors hover:border-[#1092ce] hover:text-[#1092ce]">
+              Join as Driver
+            </Link>
+          </div>
 
           <div className="mt-10 flex flex-wrap gap-8 md:mt-12 md:gap-14">
             <div>
@@ -143,41 +157,6 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-
-        <aside className="rounded-[28px] border border-[#dfe7ef] bg-white px-7 py-8 shadow-[0_22px_45px_rgba(10,49,77,0.09)]">
-          <h2 className="m-0 text-[34px] font-bold text-[#1e2935]">Admin Dashboard Login</h2>
-          <p className="mt-3 text-base text-[#607182]">Secure access to the transit management ecosystem</p>
-
-          <div className="mt-7 space-y-4">
-            <label className="block">
-              <span className="mb-2 block text-xs font-bold tracking-[0.05em] text-[#6d7f8f]">EMAIL ADDRESS</span>
-              <input className="w-full rounded-lg border border-[#d5dee8] bg-[#f5f8fb] px-4 py-3 text-[#8ea0af] outline-none" value="admin@transitely.com" readOnly />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-xs font-bold tracking-[0.05em] text-[#6d7f8f]">PASSWORD</span>
-              <input className="w-full rounded-lg border border-[#d5dee8] bg-[#f5f8fb] px-4 py-3 text-[#8ea0af] outline-none" value="••••••••" readOnly />
-            </label>
-          </div>
-
-          <div className="mt-6 flex items-center justify-between text-sm text-[#5f7181]">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" className="h-4 w-4 accent-[#127eaf]" />
-              Remember this device for 30 days
-            </label>
-            <a href="#" className="font-semibold text-[#127eaf]">
-              Forgot password?
-            </a>
-          </div>
-
-          <Link to="/portal" className="mt-6 block rounded-full bg-[#1092ce] py-3 text-center text-lg font-semibold text-white no-underline shadow-[0_10px_18px_rgba(16,146,206,0.34)] transition-colors hover:bg-[#0d80b4]">
-            Login to Dashboard
-          </Link>
-
-          <div className="mt-7 border-t border-[#e6edf3] pt-5 text-center">
-            <p className="m-0 text-xs font-bold tracking-[0.14em] text-[#8c9baa]">SECURITY PROTOCOLS</p>
-            <p className="mt-2 text-sm text-[#5c6d7d]">Identity verified by Transitely Auth Service</p>
-          </div>
-        </aside>
       </section>
 
       <section className="mx-auto w-full max-w-[1180px] px-4 pb-4 sm:px-5">
@@ -222,7 +201,7 @@ export default function HomePage() {
 
         <article className="rounded-2xl border border-[#d6e1ec] bg-white p-6 shadow-[0_8px_20px_rgba(14,47,74,0.06)]">
           <p className="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#6b7d8d]">Usage Guide</p>
-          <h3 className="mt-2 text-2xl font-bold text-[#1b2a36]">Daily Rider Best Practices</h3>
+          <h3 className="mt-2 text-2xl font-bold text-[#1b2a36]">Daily User Best Practices</h3>
           <ul className="mt-4 space-y-3">
             {usageTips.map((tip) => (
               <li key={tip} className="flex items-start gap-3 rounded-lg border border-[#deebf6] bg-[#f8fbff] px-3 py-2.5 text-sm text-[#506373]">
@@ -232,9 +211,9 @@ export default function HomePage() {
             ))}
           </ul>
           <div className="mt-6 rounded-xl bg-[#0f7db4] p-4 text-white">
-            <p className="m-0 text-xs uppercase tracking-[0.1em] text-[#bde7ff]">Rider Completion Rate</p>
+            <p className="m-0 text-xs uppercase tracking-[0.1em] text-[#bde7ff]">User Completion Rate</p>
             <p className="mt-1 text-3xl font-bold">96.4%</p>
-            <p className="m-0 text-sm text-[#e4f6ff]">Successful trip completion across verified riders this month.</p>
+            <p className="m-0 text-sm text-[#e4f6ff]">Successful trip completion across verified users this month.</p>
           </div>
         </article>
       </section>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../components/Layout'
+import { LiveRideMap, RideMapPicker } from '../components/Maps'
 import { Card, Empty, Field, ListCard, NotificationItem, PaymentItem, ProfileGrid, RideItem, StatCard } from '../components/Ui'
 import { TOKEN_KEY } from '../constants/auth'
 import { apiRequest } from '../services/api'
@@ -10,14 +11,17 @@ export default function RiderAppPage() {
   const [view, setView] = useState('home')
   const [state, setState] = useState({ profile: {}, rides: [], payments: [], notifications: [] })
   const [message, setMessage] = useState('')
+  const [chat, setChat] = useState([])
+  const [bookingPoints, setBookingPoints] = useState({ pickup: null, dropoff: null })
+  const [track, setTrack] = useState(null)
 
   const load = async () => {
     try {
       const [profileData, ridesData, paymentsData, notificationsData] = await Promise.all([
-        apiRequest('/api/users/profile'),
-        apiRequest('/api/users/rides'),
-        apiRequest('/api/users/payments'),
-        apiRequest('/api/users/notifications'),
+        apiRequest('/api/user/profile'),
+        apiRequest('/api/user/rides'),
+        apiRequest('/api/user/payments'),
+        apiRequest('/api/user/notifications'),
       ])
       setState({
         profile: profileData.data || profileData.rider || {},
@@ -43,10 +47,16 @@ export default function RiderAppPage() {
     load()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const activeRide = useMemo(
-    () => state.rides.find((ride) => ['requested', 'accepted', 'arrived', 'started', 'driver_arrived', 'in_progress'].includes(String(ride.status || '').toLowerCase())),
-    [state.rides]
-  )
+  const activeRide = useMemo(() => state.rides.find((ride) => ['requested', 'accepted', 'arrived', 'started', 'ongoing', 'driver_arrived', 'in_progress'].includes(String(ride.status || '').toLowerCase())), [state.rides])
+
+  const loadChat = async (rideId) => {
+    try {
+      const data = await apiRequest(`/api/rides/${rideId}/chat`)
+      setChat(data.data || [])
+    } catch {
+      setChat([])
+    }
+  }
 
   const requestRide = async (event) => {
     event.preventDefault()
@@ -61,7 +71,9 @@ export default function RiderAppPage() {
           pickup_lng: Number(formData.get('pickup_lng') || 0),
           dropoff_lat: Number(formData.get('dropoff_lat') || 0),
           dropoff_lng: Number(formData.get('dropoff_lng') || 0),
-          fare: Number(formData.get('fare') || 0),
+          distance_km: Number(formData.get('distance_km') || 0),
+          ride_type: formData.get('ride_type') || 'single',
+          promo_code: formData.get('promo_code') || '',
           payment_method: formData.get('payment_method') || 'cash',
         },
       })
@@ -88,12 +100,50 @@ export default function RiderAppPage() {
     }
   }
 
+  const sendChat = async (event) => {
+    event.preventDefault()
+    if (!activeRide?._id) return
+    const form = new FormData(event.currentTarget)
+    const messageText = String(form.get('message') || '').trim()
+    if (!messageText) return
+    try {
+      await apiRequest(`/api/rides/${activeRide._id}/chat`, { method: 'POST', body: { message: messageText } })
+      event.currentTarget.reset()
+      loadChat(activeRide._id)
+    } catch (error) {
+      setMessage(error.message)
+    }
+  }
+
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY)
     navigate('/user/login')
   }
 
   const views = ['home', 'book', 'active', 'history', 'payments', 'notifications', 'profile']
+
+  useEffect(() => {
+    if (activeRide?._id) loadChat(activeRide._id)
+  }, [activeRide?._id])
+
+  useEffect(() => {
+    if (!activeRide?._id) return
+    let alive = true
+    const tick = async () => {
+      try {
+        const data = await apiRequest(`/api/rides/${activeRide._id}/track`)
+        if (alive) setTrack(data.data || null)
+      } catch {
+        if (alive) setTrack(null)
+      }
+    }
+    tick()
+    const id = setInterval(tick, 8000)
+    return () => {
+      alive = false
+      clearInterval(id)
+    }
+  }, [activeRide?._id])
 
   return (
     <Layout
@@ -127,25 +177,76 @@ export default function RiderAppPage() {
           <form onSubmit={requestRide} className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Field name="pickup_address" placeholder="Pickup address" />
             <Field name="dropoff_address" placeholder="Dropoff address" />
-            <Field name="pickup_lat" placeholder="Pickup lat" />
-            <Field name="pickup_lng" placeholder="Pickup lng" />
-            <Field name="dropoff_lat" placeholder="Dropoff lat" />
-            <Field name="dropoff_lng" placeholder="Dropoff lng" />
-            <Field name="fare" placeholder="Estimated fare" />
+            <Field name="pickup_lat" placeholder="Pickup lat" value={bookingPoints.pickup?.lat || ''} readOnly />
+            <Field name="pickup_lng" placeholder="Pickup lng" value={bookingPoints.pickup?.lng || ''} readOnly />
+            <Field name="dropoff_lat" placeholder="Dropoff lat" value={bookingPoints.dropoff?.lat || ''} readOnly />
+            <Field name="dropoff_lng" placeholder="Dropoff lng" value={bookingPoints.dropoff?.lng || ''} readOnly />
+            <Field name="distance_km" placeholder="Distance (km)" />
+            <select name="ride_type" className="h-11 rounded-md border border-[#cfd9e4] bg-[#f7fbff] px-3 text-[#1f2e3a] outline-none focus:border-[#1092ce]">
+              <option value="single">Single</option>
+              <option value="share">Share</option>
+              <option value="family">Family</option>
+              <option value="intercity-reserve">Intercity Reserve</option>
+              <option value="intercity-day-trip">Intercity Day Trip</option>
+              <option value="intercity-inside-city">Intercity Inside City</option>
+            </select>
             <select name="payment_method" className="h-11 rounded-md border border-[#cfd9e4] bg-[#f7fbff] px-3 text-[#1f2e3a] outline-none focus:border-[#1092ce]">
               <option value="cash">Cash</option>
               <option value="card">Card</option>
               <option value="bkash">Bkash</option>
             </select>
+            <Field name="promo_code" placeholder="Promo code (optional)" />
+            <div className="md:col-span-2">
+              <RideMapPicker
+                pickup={bookingPoints.pickup}
+                dropoff={bookingPoints.dropoff}
+                onPickupChange={(point) => setBookingPoints((p) => ({ ...p, pickup: point }))}
+                onDropoffChange={(point) => setBookingPoints((p) => ({ ...p, dropoff: point }))}
+              />
+            </div>
             <button className="md:col-span-2 rounded-md bg-[#1092ce] py-2 font-semibold text-white shadow-[0_10px_18px_rgba(16,146,206,0.24)] transition-colors hover:bg-[#0d80b4]">Request Ride</button>
           </form>
         </Card>
       ) : null}
 
       {view === 'active' ? (
-        <Card title="Active Ride" actions={<button onClick={cancelRide} className="rounded-md border border-[#d7b8b8] bg-[#fff8f8] px-3 py-1 text-sm font-semibold text-[#a04444]">Cancel</button>}>
-          {activeRide ? <RideItem ride={activeRide} /> : <Empty text="No active ride right now." />}
-        </Card>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Card title="Active Ride" actions={<button onClick={cancelRide} className="rounded-md border border-[#d7b8b8] bg-[#fff8f8] px-3 py-1 text-sm font-semibold text-[#a04444]">Cancel</button>}>
+            {activeRide ? (
+              <div className="grid gap-3">
+                <RideItem ride={activeRide} />
+                <div className="rounded-lg border border-[#d9e8f3] bg-[#f4fbff] p-3 text-sm text-[#486075]">
+                  <p>Tracking status: <span className="font-semibold capitalize">{activeRide.status}</span></p>
+                  <p>Estimated fare: <span className="font-semibold">BDT {Number(activeRide.estimatedFare || activeRide.fare || 0).toLocaleString()}</span></p>
+                  <p>Current fare: <span className="font-semibold">BDT {Number(activeRide.fare || 0).toLocaleString()}</span></p>
+                </div>
+                <LiveRideMap
+                  pickup={{ lat: Number(activeRide.pickupLat || 0), lng: Number(activeRide.pickupLng || 0) }}
+                  dropoff={{ lat: Number(activeRide.dropoffLat || 0), lng: Number(activeRide.dropoffLng || 0) }}
+                  driver={{
+                    lat: Number(track?.driverId?.location?.lat || 0),
+                    lng: Number(track?.driverId?.location?.lng || 0),
+                  }}
+                />
+              </div>
+            ) : <Empty text="No active ride right now." />}
+          </Card>
+          <Card title="Chat with Driver">
+            {activeRide ? (
+              <div className="grid gap-2">
+                <div className="h-52 overflow-auto rounded-lg border border-[#d9e8f3] bg-[#f9fcff] p-2">
+                  {chat.length ? chat.map((item, idx) => (
+                    <p key={idx} className="mb-1 text-sm text-[#355066]"><span className="font-semibold capitalize">{item.senderRole}:</span> {item.message}</p>
+                  )) : <p className="text-sm text-[#6b7d8d]">No messages yet.</p>}
+                </div>
+                <form onSubmit={sendChat} className="flex gap-2">
+                  <input name="message" className="h-10 flex-1 rounded-md border border-[#cfd9e4] bg-white px-3 text-[#1f2e3a] outline-none focus:border-[#1092ce]" placeholder="Type message..." />
+                  <button className="rounded-md bg-[#1092ce] px-4 text-sm font-semibold text-white">Send</button>
+                </form>
+              </div>
+            ) : <Empty text="Chat appears when a ride is active." />}
+          </Card>
+        </div>
       ) : null}
 
       {view === 'history' ? <ListCard title="Ride History" items={state.rides} render={(item) => <RideItem ride={item} />} empty="No rides found." /> : null}

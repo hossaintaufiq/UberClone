@@ -12,6 +12,10 @@ export default function RiderLoginPage() {
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const goBack = () => {
+    navigate('/')
+  }
+
   const submit = async (event) => {
     event.preventDefault()
     if (!identifier || !password) return setMessage('Enter your email/phone and password.')
@@ -35,6 +39,14 @@ export default function RiderLoginPage() {
     <Layout title="User Login" subtitle="Welcome back to Transitely user portal.">
       <section className="grid min-h-[calc(100vh-270px)] grid-cols-1 overflow-hidden rounded-3xl border border-[#d9e3ec] bg-white shadow-[0_14px_30px_rgba(14,47,74,0.08)] lg:grid-cols-2">
         <form onSubmit={submit} className="flex flex-col justify-center p-6 md:p-10">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <button type="button" onClick={goBack} className="inline-flex w-fit items-center gap-1 rounded-md border border-[#c9dae8] bg-[#f7fbff] px-3 py-1.5 text-xs font-semibold text-[#446278] transition-colors hover:border-[#9cc9e5] hover:text-[#2d5b78]">
+              ← Back
+            </button>
+            <Link to="/" className="inline-flex w-fit items-center gap-1 rounded-md border border-[#c9dae8] bg-white px-3 py-1.5 text-xs font-semibold text-[#446278] transition-colors hover:border-[#9cc9e5] hover:text-[#2d5b78]">
+              Home
+            </Link>
+          </div>
           <p className="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#688092]">Secure User Access</p>
           <h2 className="mt-2 text-3xl font-bold text-[#1b2a36]">Sign in to your account</h2>
           <p className="mt-2 text-sm text-[#607282]">Manage rides, payments, notifications, and live trip status in one place.</p>

@@ -16,5 +16,9 @@ router.get('/rides',                     admin.getRides);
 router.get('/complaints',                admin.getComplaints);
 router.patch('/complaints/:id',          admin.updateComplaint);
 router.get('/revenue',                   admin.getRevenue);
+router.get('/config',                    admin.getConfig);
+router.patch('/config',                  admin.updateConfig);
+router.post('/promo-codes',              admin.createPromoCode);
+router.patch('/promo-codes/:code/toggle', admin.togglePromoCode);
 
 module.exports = router;

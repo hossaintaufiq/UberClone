@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Layout from '../components/Layout'
 import { DRIVER_TOKEN_KEY } from '../constants/auth'
 import { apiRequest } from '../services/api'
 
 export default function DriverLoginPage() {
   const navigate = useNavigate()
-  const [identifier, setIdentifier] = useState('')
+  const location = useLocation()
+  const [identifier, setIdentifier] = useState(new URLSearchParams(location.search).get('identifier') || '')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
@@ -43,6 +44,9 @@ export default function DriverLoginPage() {
           </div>
           {message ? <p className="mt-3 text-sm text-[#b04545]">{message}</p> : null}
           <button disabled={busy} className="mt-4 w-full rounded-md bg-[#36a7e6] py-2.5 font-semibold text-white shadow-[0_10px_18px_rgba(54,167,230,0.3)] transition-colors hover:bg-[#2898d9] disabled:opacity-70">{busy ? 'Signing in...' : 'Login'}</button>
+          <p className="mt-3 text-sm text-[#607282]">
+            No account? <Link className="font-semibold text-[#2f9edf]" to="/driver/register">Register as driver</Link>
+          </p>
           <p className="mt-4 text-sm text-[#607282]">
             Admin? <Link className="font-semibold text-[#2f9edf]" to="/admin/login">Go to admin login</Link>
           </p>

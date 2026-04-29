@@ -9,6 +9,10 @@ export default function RiderRegisterPage() {
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const goBack = () => {
+    navigate('/')
+  }
+
   const submit = async (event) => {
     event.preventDefault()
     if (!form.name || !form.email || !form.phone || !form.password) return setMessage('Complete all registration fields.')
@@ -31,6 +35,9 @@ export default function RiderRegisterPage() {
     <Layout title="User Register" subtitle="Create user account with your profile details.">
       <section className="grid min-h-[calc(100vh-270px)] grid-cols-1 overflow-hidden rounded-3xl border border-[#d9e3ec] bg-white shadow-[0_14px_30px_rgba(14,47,74,0.08)] lg:grid-cols-2">
         <form onSubmit={submit} className="flex flex-col justify-center p-6 md:p-10">
+          <button type="button" onClick={goBack} className="mb-4 inline-flex w-fit items-center gap-1 rounded-md border border-[#c9dae8] bg-[#f7fbff] px-3 py-1.5 text-xs font-semibold text-[#446278] transition-colors hover:border-[#9cc9e5] hover:text-[#2d5b78]">
+            ← Back
+          </button>
           <p className="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#688092]">User Onboarding</p>
           <h2 className="mt-2 text-3xl font-bold text-[#1b2a36]">Create your user account</h2>
           <p className="mt-2 text-sm text-[#607282]">Register in seconds to book rides, track trips, and manage payments securely.</p>
