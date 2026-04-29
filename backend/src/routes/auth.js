@@ -50,6 +50,11 @@ router.post('/rider/login',           ctrl.riderLogin);
 router.post('/rider/verify-otp',      ctrl.riderVerifyOTP);
 router.post('/rider/forgot-password', ctrl.riderForgotPassword);
 router.post('/rider/reset-password',  ctrl.riderResetPassword);
+router.post('/user/register',         ctrl.riderRegister);
+router.post('/user/login',            ctrl.riderLogin);
+router.post('/user/verify-otp',       ctrl.riderVerifyOTP);
+router.post('/user/forgot-password',  ctrl.riderForgotPassword);
+router.post('/user/reset-password',   ctrl.riderResetPassword);
 
 router.post('/driver/register',       ctrl.driverRegister);
 router.post('/driver/login',          ctrl.driverLogin);

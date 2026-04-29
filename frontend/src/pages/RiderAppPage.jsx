@@ -14,10 +14,10 @@ export default function RiderAppPage() {
   const load = async () => {
     try {
       const [profileData, ridesData, paymentsData, notificationsData] = await Promise.all([
-        apiRequest('/api/riders/profile'),
-        apiRequest('/api/riders/rides'),
-        apiRequest('/api/riders/payments'),
-        apiRequest('/api/riders/notifications'),
+        apiRequest('/api/users/profile'),
+        apiRequest('/api/users/rides'),
+        apiRequest('/api/users/payments'),
+        apiRequest('/api/users/notifications'),
       ])
       setState({
         profile: profileData.data || profileData.rider || {},
@@ -28,7 +28,7 @@ export default function RiderAppPage() {
     } catch (error) {
       if (error.status === 401 || error.status === 403) {
         localStorage.removeItem(TOKEN_KEY)
-        navigate('/rider/login')
+        navigate('/user/login')
         return
       }
       setMessage(error.message)
@@ -37,7 +37,7 @@ export default function RiderAppPage() {
 
   useEffect(() => {
     if (!localStorage.getItem(TOKEN_KEY)) {
-      navigate('/rider/login')
+      navigate('/user/login')
       return
     }
     load()
@@ -90,15 +90,15 @@ export default function RiderAppPage() {
 
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY)
-    navigate('/rider/login')
+    navigate('/user/login')
   }
 
   const views = ['home', 'book', 'active', 'history', 'payments', 'notifications', 'profile']
 
   return (
     <Layout
-      title="Rider App"
-      subtitle={`Welcome ${state.profile.name || state.profile.full_name || 'Rider'} (${state.profile.status || 'active'})`}
+      title="User App"
+      subtitle={`Welcome ${state.profile.name || state.profile.full_name || 'User'} (${state.profile.status || 'active'})`}
       actions={<button onClick={logout} className="rounded-md border border-[#c4d4e2] bg-white px-3 py-2 text-sm font-semibold text-[#28526d] transition-colors hover:border-[#1092ce] hover:text-[#1092ce]">Logout</button>}
     >
       <div className="grid grid-cols-2 md:grid-cols-7 gap-2 mb-3">

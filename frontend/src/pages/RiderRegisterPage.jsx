@@ -15,11 +15,11 @@ export default function RiderRegisterPage() {
     try {
       setBusy(true)
       setMessage('')
-      await apiRequest('/api/auth/rider/register', {
+      await apiRequest('/api/auth/user/register', {
         method: 'POST',
         body: { full_name: form.name, name: form.name, email: form.email, phone: form.phone, password: form.password },
       })
-      navigate(`/rider/login?identifier=${encodeURIComponent(form.email)}`)
+      navigate(`/user/login?identifier=${encodeURIComponent(form.email)}`)
     } catch (error) {
       setMessage(error.message)
     } finally {
@@ -28,11 +28,11 @@ export default function RiderRegisterPage() {
   }
 
   return (
-    <Layout title="Rider Register" subtitle="Create rider account with your profile details.">
+    <Layout title="User Register" subtitle="Create user account with your profile details.">
       <section className="grid min-h-[calc(100vh-270px)] grid-cols-1 overflow-hidden rounded-3xl border border-[#d9e3ec] bg-white shadow-[0_14px_30px_rgba(14,47,74,0.08)] lg:grid-cols-2">
         <form onSubmit={submit} className="flex flex-col justify-center p-6 md:p-10">
-          <p className="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#688092]">Rider Onboarding</p>
-          <h2 className="mt-2 text-3xl font-bold text-[#1b2a36]">Create your rider account</h2>
+          <p className="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#688092]">User Onboarding</p>
+          <h2 className="mt-2 text-3xl font-bold text-[#1b2a36]">Create your user account</h2>
           <p className="mt-2 text-sm text-[#607282]">Register in seconds to book rides, track trips, and manage payments securely.</p>
           <div className="mt-6 space-y-4">
             <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full rounded-md border border-[#cfd9e4] bg-[#f7fbff] px-3 py-2.5 text-[#1f2e3a] outline-none focus:border-[#1092ce]" placeholder="Full name" />
@@ -42,7 +42,7 @@ export default function RiderRegisterPage() {
           </div>
           {message ? <p className="mt-3 text-sm text-[#b04545]">{message}</p> : null}
           <button disabled={busy} className="mt-4 w-full rounded-md bg-[#1092ce] py-2.5 font-semibold text-white shadow-[0_10px_18px_rgba(16,146,206,0.28)] transition-colors hover:bg-[#0d80b4] disabled:opacity-70">{busy ? 'Creating account...' : 'Register'}</button>
-          <p className="mt-4 text-sm text-[#607282]">Already have an account? <Link className="font-semibold text-[#0f7db4]" to="/rider/login">Sign in</Link></p>
+          <p className="mt-4 text-sm text-[#607282]">Already have an account? <Link className="font-semibold text-[#0f7db4]" to="/user/login">Sign in</Link></p>
         </form>
 
         <aside className="relative overflow-hidden bg-gradient-to-br from-[#0f7db4] via-[#0f6fa0] to-[#0a567c] p-6 text-white md:p-10">

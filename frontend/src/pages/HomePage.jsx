@@ -64,20 +64,23 @@ export default function HomePage() {
           </div>
 
           <nav className="hidden items-center gap-3 md:flex">
-            <Link to="/rider/login" className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline transition-colors hover:border-[#0d6fa3] hover:text-[#0d6fa3]">
-              Rider Login
+            <Link to="/user/login" className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline transition-colors hover:border-[#0d6fa3] hover:text-[#0d6fa3]">
+              User Login
             </Link>
-            <Link to="/rider/register" className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline transition-colors hover:border-[#0d6fa3] hover:text-[#0d6fa3]">
-              Rider Registration
+            <Link to="/user/register" className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline transition-colors hover:border-[#0d6fa3] hover:text-[#0d6fa3]">
+              User Registration
             </Link>
-            <Link to="/rider/app" className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline transition-colors hover:border-[#0d6fa3] hover:text-[#0d6fa3]">
-              Rider App
+            <Link to="/user/app" className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline transition-colors hover:border-[#0d6fa3] hover:text-[#0d6fa3]">
+              User App
             </Link>
           </nav>
 
           <div className="hidden items-center gap-3 md:flex">
-            <Link to="/portal" className="rounded-full bg-[#0e78aa] px-5 py-2 text-sm font-semibold text-white no-underline transition-colors hover:bg-[#0b6791]">
-              Admin Login
+            <Link to="/admin/dashboard" className="rounded-full bg-[#3aa7e8] px-5 py-2 text-sm font-semibold text-white no-underline transition-colors hover:bg-[#2898d9]">
+              Admin Dashboard
+            </Link>
+            <Link to="/driver/login" className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline transition-colors hover:border-[#2f9edf] hover:text-[#2f9edf]">
+              Driver Login
             </Link>
           </div>
 
@@ -97,17 +100,20 @@ export default function HomePage() {
         {mobileMenuOpen ? (
           <div className="mx-auto mt-3 w-full max-w-7xl rounded-3xl border border-[#d7e0ea] bg-white px-4 py-4 shadow-[0_12px_32px_rgba(16,47,74,0.1)] md:hidden">
             <nav className="grid gap-2">
-              <Link to="/rider/login" onClick={() => setMobileMenuOpen(false)} className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline">
-                Rider Login
+              <Link to="/user/login" onClick={() => setMobileMenuOpen(false)} className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline">
+                User Login
               </Link>
-              <Link to="/rider/register" onClick={() => setMobileMenuOpen(false)} className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline">
-                Rider Registration
+              <Link to="/user/register" onClick={() => setMobileMenuOpen(false)} className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline">
+                User Registration
               </Link>
-              <Link to="/rider/app" onClick={() => setMobileMenuOpen(false)} className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline">
-                Rider App
+              <Link to="/user/app" onClick={() => setMobileMenuOpen(false)} className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline">
+                User App
               </Link>
-              <Link to="/portal" onClick={() => setMobileMenuOpen(false)} className="rounded-full bg-[#0e78aa] px-4 py-2 text-center text-sm font-semibold text-white no-underline">
-                Admin Login
+              <Link to="/admin/dashboard" onClick={() => setMobileMenuOpen(false)} className="rounded-full bg-[#3aa7e8] px-4 py-2 text-center text-sm font-semibold text-white no-underline">
+                Admin Dashboard
+              </Link>
+              <Link to="/driver/login" onClick={() => setMobileMenuOpen(false)} className="rounded-full border border-[#bfd4e4] px-4 py-2 text-center text-sm font-semibold text-[#1e445f] no-underline">
+                Driver Login
               </Link>
             </nav>
           </div>
@@ -209,8 +215,8 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-          <Link to="/rider/register" className="mt-5 inline-block rounded-full bg-[#1092ce] px-5 py-2.5 text-sm font-semibold text-white no-underline shadow-[0_10px_18px_rgba(16,146,206,0.24)] hover:bg-[#0d80b4]">
-            Start Rider Registration
+          <Link to="/user/register" className="mt-5 inline-block rounded-full bg-[#1092ce] px-5 py-2.5 text-sm font-semibold text-white no-underline shadow-[0_10px_18px_rgba(16,146,206,0.24)] hover:bg-[#0d80b4]">
+            Start User Registration
           </Link>
         </article>
 

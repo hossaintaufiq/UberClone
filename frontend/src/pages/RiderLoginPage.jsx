@@ -18,12 +18,12 @@ export default function RiderLoginPage() {
     try {
       setBusy(true)
       setMessage('')
-      const data = await apiRequest('/api/auth/rider/login', {
+      const data = await apiRequest('/api/auth/user/login', {
         method: 'POST',
         body: { identifier, password },
       })
       localStorage.setItem(TOKEN_KEY, data.token)
-      navigate('/rider/app')
+      navigate('/user/app')
     } catch (error) {
       setMessage(error.message)
     } finally {
@@ -32,10 +32,10 @@ export default function RiderLoginPage() {
   }
 
   return (
-    <Layout title="Rider Login" subtitle="Welcome back to Transitely rider portal.">
+    <Layout title="User Login" subtitle="Welcome back to Transitely user portal.">
       <section className="grid min-h-[calc(100vh-270px)] grid-cols-1 overflow-hidden rounded-3xl border border-[#d9e3ec] bg-white shadow-[0_14px_30px_rgba(14,47,74,0.08)] lg:grid-cols-2">
         <form onSubmit={submit} className="flex flex-col justify-center p-6 md:p-10">
-          <p className="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#688092]">Secure Rider Access</p>
+          <p className="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#688092]">Secure User Access</p>
           <h2 className="mt-2 text-3xl font-bold text-[#1b2a36]">Sign in to your account</h2>
           <p className="mt-2 text-sm text-[#607282]">Manage rides, payments, notifications, and live trip status in one place.</p>
           <div className="mt-6 space-y-4">
@@ -44,7 +44,7 @@ export default function RiderLoginPage() {
           </div>
           {message ? <p className="mt-3 text-sm text-[#b04545]">{message}</p> : null}
           <button disabled={busy} className="mt-4 w-full rounded-md bg-[#1092ce] py-2.5 font-semibold text-white shadow-[0_10px_18px_rgba(16,146,206,0.28)] transition-colors hover:bg-[#0d80b4] disabled:opacity-70">{busy ? 'Signing in...' : 'Login'}</button>
-          <p className="mt-4 text-sm text-[#607282]">No account? <Link className="font-semibold text-[#0f7db4]" to="/rider/register">Register</Link></p>
+          <p className="mt-4 text-sm text-[#607282]">No account? <Link className="font-semibold text-[#0f7db4]" to="/user/register">Register</Link></p>
         </form>
 
         <aside className="relative overflow-hidden bg-gradient-to-br from-[#0f7db4] via-[#0f6fa0] to-[#0a567c] p-6 text-white md:p-10">

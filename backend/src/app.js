@@ -29,6 +29,7 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.get("/api", (_, res) => res.json({ app: "Transitely API", stack: "MERN", status: "running" }));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/riders", require("./routes/riders"));
+app.use("/api/users", require("./routes/riders"));
 app.use("/api/drivers", require("./routes/drivers"));
 app.use("/api/rides", require("./routes/rides"));
 app.use("/api/complaints", require("./routes/complaints"));
