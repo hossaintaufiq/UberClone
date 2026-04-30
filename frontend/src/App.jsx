@@ -21,7 +21,6 @@ import DriverRideHistoryPage from './pages/driver/DriverRideHistoryPage'
 import DriverProfilePage from './pages/driver/DriverProfilePage'
 
 // Admin
-import AdminLoginPage from './pages/admin/AdminLoginPage'
 import AdminDashboardPage from './pages/admin/AdminDashboardPage'
 import AdminManageRiderPage from './pages/admin/AdminManageRiderPage'
 import AdminManageDriverPage from './pages/admin/AdminManageDriverPage'
@@ -56,8 +55,7 @@ function App() {
       <Route path="/driver/profile" element={<DriverProfilePage />} />
 
       {/* Admin Portal */}
-      <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
-      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
       <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
       <Route path="/admin/riders" element={<AdminManageRiderPage />} />
       <Route path="/admin/drivers" element={<AdminManageDriverPage />} />
@@ -67,7 +65,7 @@ function App() {
       <Route path="/admin/analytics" element={<AdminReportAnalyticsPage />} />
 
       {/* Legacy redirect */}
-      <Route path="/portal" element={<Navigate to="/admin/login" replace />} />
+      <Route path="/portal" element={<Navigate to="/admin/dashboard" replace />} />
 
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />

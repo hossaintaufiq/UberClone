@@ -48,7 +48,7 @@ export default function PortalPage() {
               </Link>
 
               {/* Admin Portal Card */}
-              <Link to="/admin/login" className="group relative overflow-hidden rounded-[2rem] bg-white p-8 text-left shadow-[0_8px_30px_rgb(0,0,0,0.08)] ring-1 ring-[#d9e3ec] transition-all hover:-translate-y-1 hover:shadow-[0_15px_40px_rgba(28,39,49,0.12)] hover:ring-[#1c2731]/30">
+              <Link to="/admin/dashboard" className="group relative overflow-hidden rounded-[2rem] bg-white p-8 text-left shadow-[0_8px_30px_rgb(0,0,0,0.08)] ring-1 ring-[#d9e3ec] transition-all hover:-translate-y-1 hover:shadow-[0_15px_40px_rgba(28,39,49,0.12)] hover:ring-[#1c2731]/30">
                 <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-slate-100 transition-transform duration-500 group-hover:scale-[2.5]"></div>
                 
                 <div className="relative z-10">

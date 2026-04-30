@@ -1,24 +1,20 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout'
-import { ADMIN_TOKEN_KEY } from '../../constants/auth'
 import { apiRequest } from '../../services/api'
 import { Users, Search, ShieldAlert, Check, X, Mail, Phone, Calendar, ArrowUpRight } from 'lucide-react'
 
 export default function AdminManageRiderPage() {
-  const navigate = useNavigate()
   const [riders, setRiders] = useState([])
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    if (!localStorage.getItem(ADMIN_TOKEN_KEY)) { navigate('/admin/login'); return }
     loadRiders()
-  }, [navigate])
+  }, [])
 
   const loadRiders = async () => {
     try {
-      const data = await apiRequest('/api/admin/riders', { tokenKey: ADMIN_TOKEN_KEY })
+      const data = await apiRequest('/api/admin/riders')
       setRiders(data.data || [])
     } catch { setRiders([]) }
   }
@@ -28,7 +24,6 @@ export default function AdminManageRiderPage() {
       await apiRequest(`/api/admin/riders/${id}/status`, {
         method: 'PATCH',
         body: { is_active: isActive },
-        tokenKey: ADMIN_TOKEN_KEY,
       })
       setMessage(`User ${isActive ? 'activated' : 'suspended'} successfully.`)
       loadRiders()

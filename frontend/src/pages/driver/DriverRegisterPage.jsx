@@ -37,16 +37,16 @@ export default function DriverRegisterPage() {
   ]
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#edf3f9] selection:bg-[#007AFF]/20 selection:text-[#007AFF] px-4 py-12 sm:px-8">
+    <main className="flex h-screen items-center justify-center overflow-y-auto bg-[#edf3f9] selection:bg-[#007AFF]/20 selection:text-[#007AFF] px-4 py-6 sm:px-8 sm:py-8">
       
-      <div className="relative w-full max-w-[640px]">
+      <div className="relative h-full w-full max-w-[640px] pt-14">
         
         {/* Floating Return Button */}
-        <Link to="/" className="group absolute -top-16 left-0 flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-[13px] font-bold text-[#607282] shadow-sm ring-1 ring-[#d9e3ec] transition-all hover:bg-[#007AFF] hover:text-white">
+        <Link to="/" className="group absolute left-0 top-0 flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-[13px] font-bold text-[#607282] shadow-sm ring-1 ring-[#d9e3ec] transition-all hover:bg-[#007AFF] hover:text-white">
           <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" /> Return to Home
         </Link>
 
-        <div className="overflow-hidden rounded-[3rem] bg-white shadow-[0_20px_80px_rgba(14,47,74,0.08)] ring-1 ring-[#d9e3ec]">
+        <div className="flex h-full flex-col overflow-hidden rounded-[3rem] bg-white shadow-[0_20px_80px_rgba(14,47,74,0.08)] ring-1 ring-[#d9e3ec]">
           
           {/* Header Area */}
           <div className="relative overflow-hidden bg-[#1c2731] px-10 pb-16 pt-12">
@@ -62,7 +62,7 @@ export default function DriverRegisterPage() {
             </div>
           </div>
 
-          <div className="relative z-20 -mt-10 px-8 pb-10 sm:px-12">
+          <div className="relative z-20 -mt-10 flex-1 overflow-y-auto px-8 pb-10 sm:px-12">
             
             {/* Dynamic Step Progress */}
             <div className="mb-10 flex justify-between rounded-[2rem] bg-white p-4 shadow-[0_8px_30px_rgb(0,0,0,0.08)] ring-1 ring-[#d9e3ec]">

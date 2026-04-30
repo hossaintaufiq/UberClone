@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ADMIN_TOKEN_KEY } from '../constants/auth'
 
 import { LayoutDashboard, Users, Car, Map, Wallet, Ticket, BarChart3, LogOut, Menu } from 'lucide-react'
 
@@ -20,8 +19,7 @@ export default function AdminLayout({ title, children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const logout = () => {
-    localStorage.removeItem(ADMIN_TOKEN_KEY)
-    navigate('/admin/login')
+    navigate('/')
   }
 
   return (

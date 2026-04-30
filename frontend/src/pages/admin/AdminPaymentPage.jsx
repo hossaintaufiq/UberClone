@@ -1,24 +1,20 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout'
-import { ADMIN_TOKEN_KEY } from '../../constants/auth'
 import { apiRequest } from '../../services/api'
 import { Banknote, TrendingUp, Save, Wallet, Receipt, CreditCard, Activity, Settings2 } from 'lucide-react'
 
 export default function AdminPaymentPage() {
-  const navigate = useNavigate()
   const [revenue, setRevenue] = useState({ total_revenue: 0, total_payments: 0 })
   const [fareConfig, setFareConfig] = useState({ perKmRate: 12, baseFare: 40, commissionPercent: 5 })
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    if (!localStorage.getItem(ADMIN_TOKEN_KEY)) { navigate('/admin/login'); return }
     loadData()
-  }, [navigate])
+  }, [])
 
   const loadData = async () => {
     try {
-      const rev = await apiRequest('/api/admin/revenue', { tokenKey: ADMIN_TOKEN_KEY })
+      const rev = await apiRequest('/api/admin/revenue')
       setRevenue(rev.data || {})
     } catch { /* defaults */ }
   }

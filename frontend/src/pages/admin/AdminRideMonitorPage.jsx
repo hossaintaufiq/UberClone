@@ -1,23 +1,19 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout'
-import { ADMIN_TOKEN_KEY } from '../../constants/auth'
 import { apiRequest } from '../../services/api'
 import { Activity, MapPin, Navigation, Compass, Calendar, CheckCircle2, Clock, AlertTriangle } from 'lucide-react'
 
 export default function AdminRideMonitorPage() {
-  const navigate = useNavigate()
   const [rides, setRides] = useState([])
   const [filter, setFilter] = useState('all')
 
   useEffect(() => {
-    if (!localStorage.getItem(ADMIN_TOKEN_KEY)) { navigate('/admin/login'); return }
     loadRides()
-  }, [navigate])
+  }, [])
 
   const loadRides = async () => {
     try {
-      const data = await apiRequest('/api/admin/rides', { tokenKey: ADMIN_TOKEN_KEY })
+      const data = await apiRequest('/api/admin/rides')
       setRides(data.data || [])
     } catch { setRides([]) }
   }

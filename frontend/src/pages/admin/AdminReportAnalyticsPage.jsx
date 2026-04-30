@@ -1,8 +1,5 @@
-import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import AdminLayout from '../../components/AdminLayout'
-import { ADMIN_TOKEN_KEY } from '../../constants/auth'
 import { TrendingUp, TrendingDown, Users, ShieldAlert, DollarSign, Activity } from 'lucide-react'
 
 const dailyData = [
@@ -30,12 +27,6 @@ const suspensionData = [
 ]
 
 export default function AdminReportAnalyticsPage() {
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    if (!localStorage.getItem(ADMIN_TOKEN_KEY)) navigate('/admin/login')
-  }, [navigate])
-
   return (
     <AdminLayout title="Global Analytics Core">
       <div className="space-y-8 pb-10">

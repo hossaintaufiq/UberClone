@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import AdminLayout from '../../components/AdminLayout'
 import { Users, Car, Map, AlertTriangle, Banknote, Landmark, Ticket, BarChart3, TrendingUp, Navigation, ArrowRight } from 'lucide-react'
-import { ADMIN_TOKEN_KEY } from '../../constants/auth'
 import { apiRequest } from '../../services/api'
 
 const COLORS = ['#007AFF', '#34c759', '#ff9500', '#ff3b30', '#5856d6', '#af52de']
@@ -27,24 +26,22 @@ const mockSectors = [
 ]
 
 export default function AdminDashboardPage() {
-  const navigate = useNavigate()
   const [stats, setStats] = useState({ riders: 0, drivers: 0, rides: 0, complaints: 0 })
   const [revenue, setRevenue] = useState({ total_revenue: 0, total_payments: 0 })
 
   useEffect(() => {
-    if (!localStorage.getItem(ADMIN_TOKEN_KEY)) { navigate('/admin/login'); return }
     const load = async () => {
       try {
         const [dash, rev] = await Promise.all([
-          apiRequest('/api/admin/dashboard', { tokenKey: ADMIN_TOKEN_KEY }),
-          apiRequest('/api/admin/revenue', { tokenKey: ADMIN_TOKEN_KEY }),
+          apiRequest('/api/admin/dashboard'),
+          apiRequest('/api/admin/revenue'),
         ])
         setStats(dash.data || {})
         setRevenue(rev.data || {})
       } catch { /* use defaults */ }
     }
     load()
-  }, [navigate])
+  }, [])
 
   const cards = [
     { label: 'Total Users', value: stats.riders, icon: <Users size={24} />, bg: 'from-blue-50 to-white', color: 'text-[#007AFF]', iconBg: 'bg-[#007AFF]/10' },

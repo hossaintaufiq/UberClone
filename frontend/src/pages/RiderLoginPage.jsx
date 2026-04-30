@@ -32,11 +32,11 @@ export default function RiderLoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#edf3f9] selection:bg-[#007AFF]/20 selection:text-[#007AFF] p-4 sm:p-8">
-      <div className="relative w-full max-w-7xl overflow-hidden rounded-[3rem] bg-white shadow-[0_20px_80px_rgba(14,47,74,0.08)] ring-1 ring-[#d9e3ec] lg:flex lg:h-[800px]">
+    <main className="flex h-screen items-center justify-center overflow-y-auto bg-[#edf3f9] selection:bg-[#007AFF]/20 selection:text-[#007AFF] p-4 sm:p-8">
+      <div className="relative h-full w-full max-w-7xl overflow-hidden rounded-[3rem] bg-white shadow-[0_20px_80px_rgba(14,47,74,0.08)] ring-1 ring-[#d9e3ec] lg:flex">
         
         {/* Left Side: Animated Brand Area */}
-        <aside className="relative hidden w-full flex-col justify-between overflow-hidden bg-[#1c2731] p-12 lg:flex lg:w-[45%]">
+        <aside className="relative hidden h-full w-full flex-col overflow-hidden bg-[#1c2731] p-8 lg:flex lg:w-[45%] xl:p-10">
           {/* Immersive Animated Background */}
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>
           <div className="absolute -left-32 -top-32 h-[500px] w-[500px] rounded-full bg-[#007AFF]/20 blur-[100px]"></div>
@@ -49,26 +49,26 @@ export default function RiderLoginPage() {
             </div>
           </div>
 
-          <div className="relative z-10 mt-20 flex-1">
+          <div className="relative z-10 mt-8 flex-1">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-200 ring-1 ring-white/20 backdrop-blur-md">
               <ShieldCheck size={14} /> Global Access Network
             </div>
-            <h1 className="text-[3.5rem] font-black leading-[1.05] tracking-tighter text-white">
+            <h1 className="text-[3rem] font-black leading-[1.05] tracking-tighter text-white xl:text-[3.5rem]">
               Your World,<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-[#007AFF]">Moving Seamlessly.</span>
             </h1>
-            <p className="mt-6 max-w-md text-[17px] font-medium leading-relaxed text-[#a0b0c0]">
+            <p className="mt-4 max-w-md text-[16px] font-medium leading-relaxed text-[#a0b0c0]">
               Access the most reliable network of verified drivers. Real-time tracking, upfront pricing, and absolute security.
             </p>
 
-            <div className="mt-12 space-y-4">
+            <div className="mt-8 space-y-3">
               {[
                 { icon: <Map size={20} className="text-[#007AFF]" />, title: 'Real-time GPS Tracking', desc: 'Share your trip live with loved ones.' },
                 { icon: <CheckCircle2 size={20} className="text-[#34c759]" />, title: 'Verified Captains', desc: 'Every driver passes strict background checks.' },
                 { icon: <Banknote size={20} className="text-[#ff9500]" />, title: 'Upfront Pricing', desc: 'No hidden fees. Pay exactly what you see.' }
               ].map((f, i) => (
-                <div key={i} className="group flex items-start gap-4 rounded-[1.5rem] bg-white/5 p-4 ring-1 ring-white/10 backdrop-blur-md transition-all hover:bg-white/10 hover:ring-white/20">
-                  <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/20">{f.icon}</div>
+                <div key={i} className="group flex items-start gap-3 rounded-[1.3rem] bg-white/5 p-3.5 ring-1 ring-white/10 backdrop-blur-md transition-all hover:bg-white/10 hover:ring-white/20">
+                  <div className="rounded-xl bg-white/10 p-2.5 ring-1 ring-white/20">{f.icon}</div>
                   <div>
                     <h3 className="text-[15px] font-bold text-white group-hover:text-blue-100">{f.title}</h3>
                     <p className="mt-1 text-[13px] font-medium text-[#8a9aab]">{f.desc}</p>
@@ -80,9 +80,9 @@ export default function RiderLoginPage() {
         </aside>
 
         {/* Right Side: Login Form */}
-        <div className="flex w-full flex-col justify-center bg-white p-8 sm:p-12 lg:w-[55%] lg:p-20">
+        <div className="relative flex w-full flex-col justify-center bg-white p-8 pt-20 sm:p-12 sm:pt-24 lg:w-[55%] lg:p-20 lg:pt-20">
           
-          <Link to="/" className="group absolute right-8 top-8 flex items-center gap-2 rounded-full bg-[#f8fafc] px-4 py-2 text-[13px] font-bold text-[#607282] ring-1 ring-[#d9e3ec] transition-all hover:bg-white hover:text-[#1c2731] hover:shadow-sm">
+          <Link to="/" className="group absolute left-8 top-8 inline-flex w-fit items-center gap-2 rounded-full bg-[#f8fafc] px-4 py-2 text-[13px] font-bold text-[#607282] ring-1 ring-[#d9e3ec] transition-all hover:bg-white hover:text-[#1c2731] hover:shadow-sm sm:left-12 lg:left-auto lg:right-8">
             <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" /> Return
           </Link>
 

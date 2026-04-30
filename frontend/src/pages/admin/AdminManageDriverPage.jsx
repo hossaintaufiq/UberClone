@@ -1,25 +1,21 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout'
-import { ADMIN_TOKEN_KEY } from '../../constants/auth'
 import { apiRequest } from '../../services/api'
 import { Car, FileText, CheckCircle2, Clock, Search, ShieldAlert, Check, X, ShieldCheck, Mail, Phone, Calendar } from 'lucide-react'
 
 export default function AdminManageDriverPage() {
-  const navigate = useNavigate()
   const [drivers, setDrivers] = useState([])
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(null)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    if (!localStorage.getItem(ADMIN_TOKEN_KEY)) { navigate('/admin/login'); return }
     loadDrivers()
-  }, [navigate])
+  }, [])
 
   const loadDrivers = async () => {
     try {
-      const data = await apiRequest('/api/admin/drivers', { tokenKey: ADMIN_TOKEN_KEY })
+      const data = await apiRequest('/api/admin/drivers')
       setDrivers(data.data || [])
     } catch { setDrivers([]) }
   }
@@ -29,7 +25,6 @@ export default function AdminManageDriverPage() {
       await apiRequest(`/api/admin/drivers/${id}/status`, {
         method: 'PATCH',
         body: { is_active: isActive },
-        tokenKey: ADMIN_TOKEN_KEY,
       })
       setMessage(`Driver ${isActive ? 'activated' : 'suspended'} successfully.`)
       loadDrivers()
@@ -41,7 +36,6 @@ export default function AdminManageDriverPage() {
     try {
       await apiRequest(`/api/admin/drivers/${id}/verify-docs`, {
         method: 'PATCH',
-        tokenKey: ADMIN_TOKEN_KEY,
       })
       setMessage('Driver documents verified.')
       loadDrivers()

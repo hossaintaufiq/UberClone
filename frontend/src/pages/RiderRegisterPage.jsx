@@ -28,9 +28,9 @@ export default function RiderRegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#edf3f9] via-white to-[#e8f4fd] p-4 font-sans selection:bg-[#007AFF] selection:text-white">
-      <div className="grid w-full max-w-[1000px] overflow-hidden rounded-[2.5rem] border border-white/60 bg-white/70 shadow-[0_24px_60px_rgba(14,47,74,0.08)] backdrop-blur-2xl lg:grid-cols-5">
-        <form onSubmit={submit} className="flex flex-col justify-center p-8 sm:p-12 lg:col-span-3">
+    <main className="flex h-screen items-center justify-center overflow-y-auto bg-gradient-to-br from-[#edf3f9] via-white to-[#e8f4fd] p-4 font-sans selection:bg-[#007AFF] selection:text-white">
+      <div className="grid h-full w-full max-w-[1000px] overflow-hidden rounded-[2.5rem] border border-white/60 bg-white/70 shadow-[0_24px_60px_rgba(14,47,74,0.08)] backdrop-blur-2xl lg:grid-cols-5">
+        <form onSubmit={submit} className="flex h-full flex-col justify-start overflow-y-auto p-8 sm:p-10 lg:col-span-3">
           <Link to="/" className="mb-8 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/50 px-4 py-2 text-[13px] font-bold text-[#607282] no-underline shadow-sm ring-1 ring-[#d9e3ec] transition-all hover:bg-white hover:text-[#1c2731] hover:shadow-md active:scale-95">
             <ArrowLeft size={14} /> Back to Home
           </Link>
@@ -85,11 +85,11 @@ export default function RiderRegisterPage() {
           </p>
         </form>
 
-        <aside className="relative hidden flex-col justify-center overflow-hidden bg-gradient-to-br from-[#007AFF] via-[#0062CC] to-[#004bb5] p-12 text-white lg:col-span-2 lg:flex">
+        <aside className="relative hidden h-full flex-col justify-start overflow-hidden bg-gradient-to-br from-[#007AFF] via-[#0062CC] to-[#004bb5] p-8 text-white lg:col-span-2 lg:flex xl:p-10">
           <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/20 blur-[60px]"></div>
           <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-white/20 blur-[60px]"></div>
           
-          <div className="relative z-10">
+          <div className="relative z-10 mt-6">
             <div className="mb-6 inline-flex rounded-2xl bg-white/10 p-4 shadow-inner backdrop-blur-md">
               <ShieldCheck size={32} className="text-blue-100" />
             </div>
@@ -99,14 +99,14 @@ export default function RiderRegisterPage() {
               Transitely safeguards every trip with verified driver profiles, intelligent routing, and secure support channels.
             </p>
             
-            <div className="mt-10 space-y-4">
+            <div className="mt-8 space-y-3">
               {[
                 { icon: <Lock size={16} className="text-blue-100" />, text: 'Identity verification' },
                 { icon: <AlertTriangle size={16} className="text-blue-100" />, text: 'SOS & emergency support' },
                 { icon: <ShieldCheck size={16} className="text-blue-100" />, text: 'Encrypted trip records' },
                 { icon: <Star size={16} className="text-blue-100" />, text: '5% cashback on repeat drivers' }
               ].map((f, i) => (
-                <div key={i} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-[14px] font-medium shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1">
+                <div key={i} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-3.5 text-[13px] font-medium shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">{f.icon}</div>
                   <span>{f.text}</span>
                 </div>

@@ -24,7 +24,7 @@ const portals = [
     title: 'Admin Portal',
     description: 'Fleet management, rider/driver oversight, analytics, and revenue tracking.',
     links: [
-      { label: 'Admin Login', path: '/admin/login', primary: true },
+      { label: 'Open Dashboard', path: '/admin/dashboard', primary: true },
     ],
   },
 ]
@@ -61,7 +61,7 @@ export default function HomePage() {
           <nav className="hidden items-center gap-8 md:flex">
             <Link to="/rider/login" className="text-[15px] font-semibold text-[#607282] no-underline transition-all hover:text-[#007AFF] hover:-translate-y-0.5">User Login</Link>
             <Link to="/driver/login" className="text-[15px] font-semibold text-[#607282] no-underline transition-all hover:text-[#007AFF] hover:-translate-y-0.5">Driver Login</Link>
-            <Link to="/admin/login" className="rounded-full bg-gradient-to-r from-[#007AFF] to-[#0062CC] px-7 py-3 text-[15px] font-bold text-white no-underline shadow-[0_8px_20px_rgba(0,122,255,0.25)] transition-all hover:-translate-y-1 hover:shadow-[0_12px_25px_rgba(0,122,255,0.4)] active:scale-95">Admin Portal</Link>
+            <Link to="/admin/dashboard" className="rounded-full bg-gradient-to-r from-[#007AFF] to-[#0062CC] px-7 py-3 text-[15px] font-bold text-white no-underline shadow-[0_8px_20px_rgba(0,122,255,0.25)] transition-all hover:-translate-y-1 hover:shadow-[0_12px_25px_rgba(0,122,255,0.4)] active:scale-95">Admin Portal</Link>
           </nav>
 
           <button type="button" className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/50 bg-white/50 text-[#1c2731] shadow-sm backdrop-blur-md transition-active active:scale-95 md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
@@ -74,7 +74,7 @@ export default function HomePage() {
             <nav className="grid gap-2">
               <Link to="/rider/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 rounded-2xl bg-white/50 px-5 py-4 text-[15px] font-bold text-[#1c2731] no-underline backdrop-blur-md transition-active active:scale-95">User Login <ChevronRight className="ml-auto h-4 w-4 text-[#8a9aab]"/></Link>
               <Link to="/driver/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 rounded-2xl bg-white/50 px-5 py-4 text-[15px] font-bold text-[#1c2731] no-underline backdrop-blur-md transition-active active:scale-95">Driver Login <ChevronRight className="ml-auto h-4 w-4 text-[#8a9aab]"/></Link>
-              <Link to="/admin/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#007AFF] to-[#0062CC] px-5 py-4 text-[15px] font-bold text-white no-underline shadow-[0_8px_20px_rgba(0,122,255,0.25)] transition-active active:scale-95">Admin Portal</Link>
+              <Link to="/admin/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#007AFF] to-[#0062CC] px-5 py-4 text-[15px] font-bold text-white no-underline shadow-[0_8px_20px_rgba(0,122,255,0.25)] transition-active active:scale-95">Admin Portal</Link>
             </nav>
           </div>
         )}

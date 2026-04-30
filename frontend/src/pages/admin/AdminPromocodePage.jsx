@@ -1,11 +1,8 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import AdminLayout from '../../components/AdminLayout'
-import { ADMIN_TOKEN_KEY } from '../../constants/auth'
 import { Ticket, Plus, Tag, RefreshCw, Calendar, Percent, Banknote, ShieldCheck } from 'lucide-react'
 
 export default function AdminPromocodePage() {
-  const navigate = useNavigate()
   const [promos, setPromos] = useState([
     { id: 1, code: 'WELCOME50', discountType: 'flat', discountValue: 50, maxUses: 100, currentUses: 34, validTo: '2025-06-30', isActive: true },
     { id: 2, code: 'RIDE20', discountType: 'percent', discountValue: 20, maxUses: 500, currentUses: 189, validTo: '2025-05-15', isActive: true },
@@ -14,10 +11,6 @@ export default function AdminPromocodePage() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ code: '', discountType: 'flat', discountValue: '', maxUses: '', validTo: '' })
   const [message, setMessage] = useState('')
-
-  useEffect(() => {
-    if (!localStorage.getItem(ADMIN_TOKEN_KEY)) navigate('/admin/login')
-  }, [navigate])
 
   const generateCode = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
