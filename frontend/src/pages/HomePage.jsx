@@ -1,295 +1,194 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import SiteFooter from '../components/SiteFooter'
+import { Car, CarFront, BarChart3, Map, MessageCircle, Banknote, ShieldCheck, Ticket, ChevronRight } from 'lucide-react'
 
-const networkStats = [
-  { label: 'Daily Trips Processed', value: '84,200+' },
-  { label: 'Connected Vehicles', value: '12,480' },
-  { label: 'Active City Corridors', value: '146' },
-  { label: 'Emergency Response SLA', value: '< 3 min' },
-]
-
-const serviceCards = [
+const portals = [
   {
-    title: 'Fleet Command Center',
-    description: 'Real-time dispatching, route health, and vehicle utilization analytics for city-scale operations.',
+    title: 'User Portal',
+    description: 'Book rides, track trips, chat with drivers, and manage payments securely.',
+    links: [
+      { label: 'Login', path: '/rider/login', primary: true },
+      { label: 'Register', path: '/rider/register', primary: false },
+    ],
   },
   {
-    title: 'Digital User Services',
-    description: 'Unified user onboarding, booking, payment, and support with secure identity controls.',
+    title: 'Driver Portal',
+    description: 'Manage your rides, track earnings, upload documents, and go online.',
+    links: [
+      { label: 'Login', path: '/driver/login', primary: true },
+      { label: 'Register', path: '/driver/register', primary: false },
+    ],
   },
   {
-    title: 'Compliance & Safety',
-    description: 'Automated logs, audit-ready reports, and policy checks for transport authority requirements.',
+    title: 'Admin Portal',
+    description: 'Fleet management, rider/driver oversight, analytics, and revenue tracking.',
+    links: [
+      { label: 'Admin Login', path: '/admin/login', primary: true },
+    ],
   },
 ]
 
-const timeline = [
-  { time: '06:00 AM', event: 'Morning demand forecast and driver heatmap synced' },
-  { time: '09:30 AM', event: 'Peak-hour control room intervention completed' },
-  { time: '01:00 PM', event: 'Midday payment reconciliation and fraud scan' },
-  { time: '05:45 PM', event: 'Evening fleet balancing across major zones' },
+const features = [
+  { icon: <Map size={28} />, title: 'Live Tracking', desc: 'Real-time GPS tracking for every trip' },
+  { icon: <MessageCircle size={28} />, title: 'In-App Chat', desc: 'Chat with your driver or rider instantly' },
+  { icon: <Banknote size={28} />, title: 'Fair Pricing', desc: 'Transparent per-km fare with promo support' },
+  { icon: <ShieldCheck size={28} />, title: 'Safety First', desc: 'Verified drivers, SOS support, trip audit' },
+  { icon: <BarChart3 size={28} />, title: 'Smart Analytics', desc: 'Revenue tracking, sector-wise insights' },
+  { icon: <Ticket size={28} />, title: 'Promo Codes', desc: 'Create and manage discount promotions' },
 ]
 
-const riderOnboardingSteps = [
-  { step: '01', title: 'Create User Account', description: 'Open User Registration, enter your basic details, and submit securely.' },
-  { step: '02', title: 'Verify and Sign In', description: 'Use your registered credentials to sign in from Rider Login instantly.' },
-  { step: '03', title: 'Request Your First Ride', description: 'Set pickup and destination in User App, confirm fare, and track driver live.' },
-]
-
-const usageTips = [
-  'Use exact pickup landmarks to reduce wait time.',
-  'Keep location access on for better driver matching.',
-  'Choose your preferred payment method before booking.',
-  'Check ride history for receipts and support issues.',
-]
-
-const routeDemand = [
-  { zone: 'Dhaka North', trips: '18.2k', width: 'w-[88%]' },
-  { zone: 'Dhaka South', trips: '14.6k', width: 'w-[72%]' },
-  { zone: 'Chattogram', trips: '10.9k', width: 'w-[56%]' },
-  { zone: 'Sylhet', trips: '7.8k', width: 'w-[42%]' },
+const stats = [
+  { label: 'Daily Trips', value: '84,200+' },
+  { label: 'Active Drivers', value: '12,480' },
+  { label: 'Service Zones', value: '146' },
+  { label: 'Response Time', value: '<3 min' },
 ]
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <main className="min-h-screen bg-[#edf3f9] text-[#1c2731]">
-      <header className="sticky top-3 z-50 px-4">
-        <div className="mx-auto mt-2 flex w-full max-w-7xl items-center justify-between gap-3 rounded-[32px] border border-[#d7e0ea] bg-white/92 px-4 py-3 shadow-[0_12px_32px_rgba(16,47,74,0.1)] backdrop-blur-md sm:px-6 sm:py-4">
-          <div className="flex items-center gap-2.5">
-            <div className="grid h-8 w-8 place-items-center rounded-full bg-[#0f7db4] text-sm font-bold text-white">T</div>
-            <p className="m-0 text-lg font-semibold text-[#16222d]">Transitely</p>
+    <main className="min-h-screen bg-gradient-to-br from-[#edf3f9] via-[#ffffff] to-[#e8f4fd] text-[#1c2731] font-sans selection:bg-[#007AFF] selection:text-white">
+      {/* Header */}
+      <header className="sticky top-4 z-50 px-4">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 rounded-full border border-white/60 bg-white/70 px-5 py-3.5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl sm:px-8 sm:py-4 transition-all duration-300 hover:bg-white/80">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-tr from-[#0062CC] to-[#007AFF] text-lg font-bold text-white shadow-[0_4px_20px_rgba(0,122,255,0.4)]">T</div>
+            <p className="text-xl font-extrabold tracking-tight text-[#1c2731]">Transitely</p>
           </div>
 
-          <nav className="hidden items-center gap-3 md:flex">
-            <Link to="/user/login" className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline transition-colors hover:border-[#0d6fa3] hover:text-[#0d6fa3]">
-              User Login
-            </Link>
-            <Link to="/user/register" className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline transition-colors hover:border-[#0d6fa3] hover:text-[#0d6fa3]">
-              User Registration
-            </Link>
-            <Link to="/user/app" className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline transition-colors hover:border-[#0d6fa3] hover:text-[#0d6fa3]">
-              User App
-            </Link>
+          <nav className="hidden items-center gap-8 md:flex">
+            <Link to="/rider/login" className="text-[15px] font-semibold text-[#607282] no-underline transition-all hover:text-[#007AFF] hover:-translate-y-0.5">User Login</Link>
+            <Link to="/driver/login" className="text-[15px] font-semibold text-[#607282] no-underline transition-all hover:text-[#007AFF] hover:-translate-y-0.5">Driver Login</Link>
+            <Link to="/admin/login" className="rounded-full bg-gradient-to-r from-[#007AFF] to-[#0062CC] px-7 py-3 text-[15px] font-bold text-white no-underline shadow-[0_8px_20px_rgba(0,122,255,0.25)] transition-all hover:-translate-y-1 hover:shadow-[0_12px_25px_rgba(0,122,255,0.4)] active:scale-95">Admin Portal</Link>
           </nav>
 
-          <div className="hidden items-center gap-3 md:flex">
-            <Link to="/admin/dashboard" className="rounded-full bg-[#3aa7e8] px-5 py-2 text-sm font-semibold text-white no-underline transition-colors hover:bg-[#2898d9]">
-              Admin Dashboard
-            </Link>
-            <Link to="/driver/login" className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline transition-colors hover:border-[#2f9edf] hover:text-[#2f9edf]">
-              Driver Login
-            </Link>
-            <Link to="/driver/register" className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline transition-colors hover:border-[#2f9edf] hover:text-[#2f9edf]">
-              Driver Registration
-            </Link>
-          </div>
-
-          <button
-            type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#c2d6e6] text-[#24506d] md:hidden"
-            onClick={() => setMobileMenuOpen((open) => !open)}
-            aria-label="Toggle navigation menu"
-            aria-expanded={mobileMenuOpen}
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 7H20M4 12H20M4 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+          <button type="button" className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/50 bg-white/50 text-[#1c2731] shadow-sm backdrop-blur-md transition-active active:scale-95 md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
           </button>
         </div>
 
-        {mobileMenuOpen ? (
-          <div className="mx-auto mt-3 w-full max-w-7xl rounded-3xl border border-[#d7e0ea] bg-white px-4 py-4 shadow-[0_12px_32px_rgba(16,47,74,0.1)] md:hidden">
+        {mobileMenuOpen && (
+          <div className="mx-auto mt-3 w-full max-w-7xl overflow-hidden rounded-[2rem] border border-white/60 bg-white/90 p-3 shadow-2xl backdrop-blur-2xl md:hidden animate-in slide-in-from-top-4 fade-in duration-300">
             <nav className="grid gap-2">
-              <Link to="/user/login" onClick={() => setMobileMenuOpen(false)} className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline">
-                User Login
-              </Link>
-              <Link to="/user/register" onClick={() => setMobileMenuOpen(false)} className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline">
-                User Registration
-              </Link>
-              <Link to="/user/app" onClick={() => setMobileMenuOpen(false)} className="rounded-full border border-[#bfd4e4] px-4 py-2 text-sm font-semibold text-[#1e445f] no-underline">
-                User App
-              </Link>
-              <Link to="/admin/dashboard" onClick={() => setMobileMenuOpen(false)} className="rounded-full bg-[#3aa7e8] px-4 py-2 text-center text-sm font-semibold text-white no-underline">
-                Admin Dashboard
-              </Link>
-              <Link to="/driver/login" onClick={() => setMobileMenuOpen(false)} className="rounded-full border border-[#bfd4e4] px-4 py-2 text-center text-sm font-semibold text-[#1e445f] no-underline">
-                Driver Login
-              </Link>
-              <Link to="/driver/register" onClick={() => setMobileMenuOpen(false)} className="rounded-full border border-[#bfd4e4] px-4 py-2 text-center text-sm font-semibold text-[#1e445f] no-underline">
-                Driver Registration
-              </Link>
+              <Link to="/rider/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 rounded-2xl bg-white/50 px-5 py-4 text-[15px] font-bold text-[#1c2731] no-underline backdrop-blur-md transition-active active:scale-95">User Login <ChevronRight className="ml-auto h-4 w-4 text-[#8a9aab]"/></Link>
+              <Link to="/driver/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 rounded-2xl bg-white/50 px-5 py-4 text-[15px] font-bold text-[#1c2731] no-underline backdrop-blur-md transition-active active:scale-95">Driver Login <ChevronRight className="ml-auto h-4 w-4 text-[#8a9aab]"/></Link>
+              <Link to="/admin/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#007AFF] to-[#0062CC] px-5 py-4 text-[15px] font-bold text-white no-underline shadow-[0_8px_20px_rgba(0,122,255,0.25)] transition-active active:scale-95">Admin Portal</Link>
             </nav>
           </div>
-        ) : null}
+        )}
       </header>
 
-      <section className="mx-auto grid w-full max-w-[1180px] gap-7 px-4 py-8 sm:px-5 md:gap-8 md:py-12">
-        <div>
-          <div className="mb-5 inline-flex rounded-full bg-[#cde7f9] px-4 py-1 text-xs font-bold tracking-[0.12em] text-[#2f6690]">
-            ENTERPRISE PORTAL
-          </div>
-          <h1 className="m-0 max-w-[760px] text-4xl font-bold leading-[1.1] text-[#18232d] md:text-5xl md:leading-[1.08]">
-            Powering Bangladesh&apos;s <span className="text-[#0f84bf]">Transit</span> Future.
-          </h1>
-          <p className="mt-5 max-w-[760px] text-lg leading-7 text-[#4f6070] md:mt-6 md:text-xl md:leading-8">
-            Access the mission control center for Transitely&apos;s nationwide logistics and public transport infrastructure.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link to="/user/register" className="rounded-full bg-[#1092ce] px-5 py-2.5 text-sm font-semibold text-white no-underline shadow-[0_10px_18px_rgba(16,146,206,0.24)] transition-colors hover:bg-[#0d80b4]">
-              Get Started as User
-            </Link>
-            <Link to="/driver/register" className="rounded-full border border-[#b8d5ea] bg-white px-5 py-2.5 text-sm font-semibold text-[#255472] no-underline transition-colors hover:border-[#1092ce] hover:text-[#1092ce]">
-              Join as Driver
-            </Link>
-          </div>
-
-          <div className="mt-10 flex flex-wrap gap-8 md:mt-12 md:gap-14">
-            <div>
-              <p className="m-0 text-4xl font-bold text-[#0e6f9f] md:text-[42px]">99.9%</p>
-              <p className="m-0 text-base text-[#58697a]">Uptime SLA</p>
-            </div>
-            <div>
-              <p className="m-0 text-4xl font-bold text-[#0e6f9f] md:text-[42px]">256-bit</p>
-              <p className="m-0 text-base text-[#58697a]">AES Encryption</p>
-            </div>
-          </div>
+      {/* Hero */}
+      <section className="relative mx-auto max-w-7xl px-4 py-20 text-center sm:px-5 md:py-32 overflow-hidden">
+        <div className="absolute left-1/2 top-1/2 -z-10 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#007AFF]/10 blur-[100px]"></div>
+        
+        <div className="mb-6 inline-flex animate-fade-in-up rounded-full border border-blue-100 bg-blue-50/50 px-5 py-2 text-[13px] font-extrabold tracking-[0.15em] text-[#007AFF] shadow-sm backdrop-blur-md">
+          SMART MOBILITY PLATFORM
+        </div>
+        <h1 className="mx-auto max-w-[800px] text-5xl font-extrabold leading-[1.1] tracking-tight text-[#1c2731] sm:text-6xl md:text-7xl lg:leading-[1.05]">
+          Moving the Future of <span className="bg-gradient-to-r from-[#007AFF] to-[#00c6ff] bg-clip-text text-transparent drop-shadow-sm">Dhaka</span>
+        </h1>
+        <p className="mx-auto mt-6 max-w-[600px] text-lg leading-relaxed text-[#607282] sm:text-xl">
+          Experience the next generation of smart urban mobility. Book rides, manage fleets, and track everything in real-time.
+        </p>
+        <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <Link to="/rider/register" className="group flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#007AFF] to-[#0062CC] px-9 py-4.5 text-[15px] font-bold text-white no-underline shadow-[0_8px_25px_rgba(0,122,255,0.3)] transition-all hover:-translate-y-1 hover:shadow-[0_15px_35px_rgba(0,122,255,0.4)] active:scale-95 sm:w-auto">
+            Get Started <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </Link>
+          <Link to="/driver/register" className="flex w-full items-center justify-center rounded-full border-2 border-transparent bg-white px-9 py-4.5 text-[15px] font-bold text-[#1c2731] no-underline shadow-sm ring-1 ring-[#d9e3ec] transition-all hover:-translate-y-1 hover:shadow-lg active:scale-95 sm:w-auto">
+            Become a Driver
+          </Link>
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-[1180px] px-4 pb-4 sm:px-5">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {networkStats.map((item) => (
-            <article key={item.label} className="rounded-2xl border border-[#d6e1ec] bg-white px-5 py-4 shadow-[0_8px_20px_rgba(14,47,74,0.06)]">
-              <p className="m-0 text-xs font-semibold uppercase tracking-[0.08em] text-[#6b7d8d]">{item.label}</p>
-              <p className="mt-2 text-2xl font-bold text-[#1b2a36]">{item.value}</p>
+      {/* Stats */}
+      <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-5">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {stats.map((s) => (
+            <div key={s.label} className="group relative overflow-hidden rounded-[2rem] border border-white/60 bg-white/40 p-8 text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5 hover:bg-white/80 hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)]">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#007AFF]/5 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"></div>
+              <p className="text-4xl font-black tracking-tight text-[#1c2731] transition-transform duration-500 group-hover:scale-105 group-hover:text-[#007AFF] sm:text-5xl">{s.value}</p>
+              <p className="mt-3 text-[13px] font-bold uppercase tracking-[0.1em] text-[#8a9aab]">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Portal Cards */}
+      <section className="mx-auto max-w-7xl px-4 py-24 sm:px-5">
+        <div className="mb-16 text-center">
+          <p className="mb-4 text-[13px] font-extrabold uppercase tracking-[0.15em] text-[#007AFF]">Choose Your Portal</p>
+          <h2 className="text-4xl font-extrabold tracking-tight text-[#1c2731] sm:text-5xl">Three Portals, One Platform</h2>
+        </div>
+        <div className="grid gap-6 md:grid-cols-3 lg:gap-8">
+          {portals.map((p) => (
+            <article key={p.title} className="group flex flex-col overflow-hidden rounded-[2rem] border border-white/60 bg-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:bg-white/90 hover:shadow-[0_20px_40px_rgba(16,47,74,0.1)]">
+              <div className="flex-1 p-8 sm:p-10">
+                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-[#007AFF] shadow-sm transition-transform duration-500 group-hover:scale-110 group-hover:bg-[#007AFF] group-hover:text-white">
+                  <ShieldCheck size={24} />
+                </div>
+                <h3 className="text-2xl font-extrabold tracking-tight text-[#1c2731]">{p.title}</h3>
+                <p className="mt-4 text-[15px] leading-relaxed text-[#607282]">{p.description}</p>
+              </div>
+              <div className="flex flex-col gap-3 bg-[#f8fafc]/50 p-6 backdrop-blur-md sm:flex-row sm:p-8">
+                {p.links.map((l) => (
+                  <Link
+                    key={l.path}
+                    to={l.path}
+                    className={`flex-1 rounded-2xl py-3.5 text-center text-[15px] font-bold no-underline transition-all duration-300 hover:-translate-y-0.5 active:scale-95 ${
+                      l.primary 
+                        ? 'bg-gradient-to-r from-[#1c2731] to-[#2c3e50] text-white shadow-lg hover:shadow-xl group-hover:from-[#007AFF] group-hover:to-[#0062CC]' 
+                        : 'border border-[#d9e3ec] bg-white text-[#1c2731] shadow-sm hover:border-[#b0c4d9] hover:bg-gray-50'
+                    }`}
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="mx-auto grid w-full max-w-[1180px] gap-4 px-4 py-6 sm:px-5 md:grid-cols-3">
-        {serviceCards.map((service) => (
-          <article key={service.title} className="rounded-2xl border border-[#d6e1ec] bg-white p-5 shadow-[0_8px_20px_rgba(14,47,74,0.06)]">
-            <h3 className="m-0 text-xl font-bold text-[#1b2a36]">{service.title}</h3>
-            <p className="mt-3 text-sm leading-6 text-[#5f7181]">{service.description}</p>
-          </article>
-        ))}
+      {/* Features */}
+      <section className="mx-auto max-w-7xl px-4 py-24 sm:px-5">
+        <div className="mb-16 text-center">
+          <p className="mb-4 text-[13px] font-extrabold uppercase tracking-[0.15em] text-[#007AFF]">Platform Features</p>
+          <h2 className="text-4xl font-extrabold tracking-tight text-[#1c2731] sm:text-5xl">Everything You Need</h2>
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {features.map((f) => (
+            <article key={f.title} className="group relative overflow-hidden rounded-[2rem] border border-white/60 bg-white/50 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5 hover:bg-white hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)]">
+              <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-gradient-to-br from-[#007AFF]/5 to-transparent opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100"></div>
+              <div className="mb-6 inline-flex rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 p-4 text-[#007AFF] shadow-sm transition-transform duration-500 group-hover:scale-110 group-hover:shadow-md">{f.icon}</div>
+              <h3 className="text-xl font-extrabold tracking-tight text-[#1c2731]">{f.title}</h3>
+              <p className="mt-3 text-[15px] leading-relaxed text-[#607282]">{f.desc}</p>
+            </article>
+          ))}
+        </div>
       </section>
 
-      <section className="mx-auto grid w-full max-w-[1180px] gap-5 px-4 py-6 sm:px-5 lg:grid-cols-[1.1fr_1fr]">
-        <article className="rounded-2xl border border-[#d6e1ec] bg-white p-6 shadow-[0_8px_20px_rgba(14,47,74,0.06)]">
-          <p className="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#6b7d8d]">How To Start</p>
-          <h3 className="mt-2 text-2xl font-bold text-[#1b2a36]">How to Sign Up and Use the App</h3>
-          <div className="mt-5 grid gap-3">
-            {riderOnboardingSteps.map((item) => (
-              <div key={item.step} className="flex gap-4 rounded-xl border border-[#d7e3ee] bg-[#f8fbff] p-4">
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0f84bf] text-xs font-bold text-white">{item.step}</span>
-                <div>
-                  <p className="m-0 font-semibold text-[#1f2e3a]">{item.title}</p>
-                  <p className="mt-1 text-sm text-[#5c6f80]">{item.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <Link to="/user/register" className="mt-5 inline-block rounded-full bg-[#1092ce] px-5 py-2.5 text-sm font-semibold text-white no-underline shadow-[0_10px_18px_rgba(16,146,206,0.24)] hover:bg-[#0d80b4]">
-            Start User Registration
-          </Link>
-        </article>
-
-        <article className="rounded-2xl border border-[#d6e1ec] bg-white p-6 shadow-[0_8px_20px_rgba(14,47,74,0.06)]">
-          <p className="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#6b7d8d]">Usage Guide</p>
-          <h3 className="mt-2 text-2xl font-bold text-[#1b2a36]">Daily User Best Practices</h3>
-          <ul className="mt-4 space-y-3">
-            {usageTips.map((tip) => (
-              <li key={tip} className="flex items-start gap-3 rounded-lg border border-[#deebf6] bg-[#f8fbff] px-3 py-2.5 text-sm text-[#506373]">
-                <span className="mt-1 h-2 w-2 rounded-full bg-[#0f84bf]" />
-                <span>{tip}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-6 rounded-xl bg-[#0f7db4] p-4 text-white">
-            <p className="m-0 text-xs uppercase tracking-[0.1em] text-[#bde7ff]">User Completion Rate</p>
-            <p className="mt-1 text-3xl font-bold">96.4%</p>
-            <p className="m-0 text-sm text-[#e4f6ff]">Successful trip completion across verified users this month.</p>
-          </div>
-        </article>
-      </section>
-
-      <section className="mx-auto grid w-full max-w-[1180px] gap-5 px-4 py-6 sm:px-5 lg:grid-cols-[1.2fr_0.8fr]">
-        <article className="rounded-2xl border border-[#d6e1ec] bg-white p-6 shadow-[0_8px_20px_rgba(14,47,74,0.06)]">
-          <p className="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#6b7d8d]">Demand Graph</p>
-          <h3 className="mt-2 text-2xl font-bold text-[#1b2a36]">Route Demand by Service Zone</h3>
-          <div className="mt-5 space-y-4">
-            {routeDemand.map((item) => (
-              <div key={item.zone}>
-                <div className="mb-1 flex items-center justify-between text-sm">
-                  <span className="font-semibold text-[#2a3b49]">{item.zone}</span>
-                  <span className="text-[#5f7282]">{item.trips} trips</span>
-                </div>
-                <div className="h-3 rounded-full bg-[#e6eef6]">
-                  <div className={`h-3 rounded-full bg-gradient-to-r from-[#17a1df] to-[#0f7db4] ${item.width}`} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="rounded-2xl border border-[#d6e1ec] bg-white p-6 shadow-[0_8px_20px_rgba(14,47,74,0.06)]">
-          <p className="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#6b7d8d]">Quick Snapshot</p>
-          <h3 className="mt-2 text-2xl font-bold text-[#1b2a36]">Service Health</h3>
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-[#f4f9ff] p-4">
-              <p className="m-0 text-xs text-[#6a7d8e]">Avg Pickup Time</p>
-              <p className="m-0 mt-1 text-2xl font-bold text-[#1d2d39]">4.2m</p>
-            </div>
-            <div className="rounded-xl bg-[#f4f9ff] p-4">
-              <p className="m-0 text-xs text-[#6a7d8e]">On-time Arrival</p>
-              <p className="m-0 mt-1 text-2xl font-bold text-[#1d2d39]">93%</p>
-            </div>
-            <div className="rounded-xl bg-[#f4f9ff] p-4">
-              <p className="m-0 text-xs text-[#6a7d8e]">Support Tickets</p>
-              <p className="m-0 mt-1 text-2xl font-bold text-[#1d2d39]">128</p>
-            </div>
-            <div className="rounded-xl bg-[#f4f9ff] p-4">
-              <p className="m-0 text-xs text-[#6a7d8e]">Driver Acceptance</p>
-              <p className="m-0 mt-1 text-2xl font-bold text-[#1d2d39]">89%</p>
-            </div>
-          </div>
-        </article>
-      </section>
-
-      <section className="mx-auto grid w-full max-w-[1180px] gap-5 px-4 py-6 sm:px-5 md:grid-cols-[1.3fr_1fr]">
-        <article className="rounded-2xl border border-[#d6e1ec] bg-white p-6 shadow-[0_8px_20px_rgba(14,47,74,0.06)]">
-          <p className="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#6b7d8d]">Operational Timeline</p>
-          <h3 className="mt-2 text-2xl font-bold text-[#1b2a36]">Today&apos;s Mobility Operations</h3>
-          <div className="mt-5 space-y-4">
-            {timeline.map((item) => (
-              <div key={item.time} className="flex items-start gap-4">
-                <span className="rounded-full bg-[#e3f1fa] px-3 py-1 text-xs font-semibold text-[#0d6fa3]">{item.time}</span>
-                <p className="m-0 text-sm text-[#4e6172]">{item.event}</p>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="rounded-2xl border border-[#d6e1ec] bg-[#0f7db4] p-6 text-white shadow-[0_10px_24px_rgba(12,73,111,0.28)]">
-          <p className="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#bde7ff]">System Trust</p>
-          <h3 className="mt-2 text-2xl font-bold">Built for Public-Scale Reliability</h3>
-          <p className="mt-3 text-sm leading-6 text-[#e6f6ff]">
-            Transitely delivers secure APIs, live monitoring, and auditable event pipelines for ministries, city operators, and enterprise partners.
+      {/* CTA */}
+      <section className="mx-auto max-w-7xl px-4 py-24 sm:px-5">
+        <div className="relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-[#007AFF] via-[#0062CC] to-[#004bb5] p-12 text-center text-white shadow-[0_24px_60px_rgba(0,122,255,0.3)] md:p-24">
+          <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-white/20 blur-[80px]"></div>
+          <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-white/20 blur-[80px]"></div>
+          
+          <h2 className="relative z-10 text-4xl font-black tracking-tight sm:text-5xl md:text-6xl">Ready to Get Started?</h2>
+          <p className="relative z-10 mx-auto mt-6 max-w-2xl text-lg text-blue-100/90 sm:text-xl">
+            Join thousands of riders and drivers powering Dhaka's smartest transit network.
           </p>
-          <ul className="mt-5 space-y-2 text-sm text-[#eaf8ff]">
-            <li>ISO-aligned data protection workflow</li>
-            <li>24/7 operations center oversight</li>
-            <li>Transparent governance and reporting</li>
-          </ul>
-        </article>
+          <div className="relative z-10 mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <Link to="/rider/register" className="flex w-full items-center justify-center rounded-full bg-white px-10 py-4.5 text-[15px] font-bold text-[#007AFF] no-underline shadow-[0_8px_25px_rgba(0,0,0,0.1)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_35px_rgba(0,0,0,0.2)] active:scale-95 sm:w-auto">Sign Up as User</Link>
+            <Link to="/driver/register" className="flex w-full items-center justify-center rounded-full border border-white/30 bg-white/10 px-10 py-4.5 text-[15px] font-bold text-white no-underline backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/20 hover:shadow-lg active:scale-95 sm:w-auto">Join as Driver</Link>
+          </div>
+        </div>
       </section>
 
       <SiteFooter />
     </main>
   )
 }
+

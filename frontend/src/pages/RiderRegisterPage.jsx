@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import Layout from '../components/Layout'
 import { apiRequest } from '../services/api'
+import { Lock, AlertTriangle, ShieldCheck, Star, ArrowLeft, ChevronRight } from 'lucide-react'
 
 export default function RiderRegisterPage() {
   const navigate = useNavigate()
@@ -9,21 +9,17 @@ export default function RiderRegisterPage() {
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const goBack = () => {
-    navigate('/')
-  }
-
   const submit = async (event) => {
     event.preventDefault()
     if (!form.name || !form.email || !form.phone || !form.password) return setMessage('Complete all registration fields.')
     try {
       setBusy(true)
       setMessage('')
-      await apiRequest('/api/auth/user/register', {
+      await apiRequest('/api/auth/rider/register', {
         method: 'POST',
         body: { full_name: form.name, name: form.name, email: form.email, phone: form.phone, password: form.password },
       })
-      navigate(`/user/login?identifier=${encodeURIComponent(form.email)}`)
+      navigate(`/rider/login?identifier=${encodeURIComponent(form.email)}`)
     } catch (error) {
       setMessage(error.message)
     } finally {
@@ -32,47 +28,93 @@ export default function RiderRegisterPage() {
   }
 
   return (
-    <Layout title="User Register" subtitle="Create user account with your profile details.">
-      <section className="grid min-h-[calc(100vh-270px)] grid-cols-1 overflow-hidden rounded-3xl border border-[#d9e3ec] bg-white shadow-[0_14px_30px_rgba(14,47,74,0.08)] lg:grid-cols-2">
-        <form onSubmit={submit} className="flex flex-col justify-center p-6 md:p-10">
-          <button type="button" onClick={goBack} className="mb-4 inline-flex w-fit items-center gap-1 rounded-md border border-[#c9dae8] bg-[#f7fbff] px-3 py-1.5 text-xs font-semibold text-[#446278] transition-colors hover:border-[#9cc9e5] hover:text-[#2d5b78]">
-            ← Back
-          </button>
-          <p className="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#688092]">User Onboarding</p>
-          <h2 className="mt-2 text-3xl font-bold text-[#1b2a36]">Create your user account</h2>
-          <p className="mt-2 text-sm text-[#607282]">Register in seconds to book rides, track trips, and manage payments securely.</p>
-          <div className="mt-6 space-y-4">
-            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full rounded-md border border-[#cfd9e4] bg-[#f7fbff] px-3 py-2.5 text-[#1f2e3a] outline-none focus:border-[#1092ce]" placeholder="Full name" />
-            <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className="w-full rounded-md border border-[#cfd9e4] bg-[#f7fbff] px-3 py-2.5 text-[#1f2e3a] outline-none focus:border-[#1092ce]" placeholder="Email" />
-            <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="w-full rounded-md border border-[#cfd9e4] bg-[#f7fbff] px-3 py-2.5 text-[#1f2e3a] outline-none focus:border-[#1092ce]" placeholder="Phone" />
-            <input value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} type="password" className="w-full rounded-md border border-[#cfd9e4] bg-[#f7fbff] px-3 py-2.5 text-[#1f2e3a] outline-none focus:border-[#1092ce]" placeholder="Password" />
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#edf3f9] via-white to-[#e8f4fd] p-4 font-sans selection:bg-[#007AFF] selection:text-white">
+      <div className="grid w-full max-w-[1000px] overflow-hidden rounded-[2.5rem] border border-white/60 bg-white/70 shadow-[0_24px_60px_rgba(14,47,74,0.08)] backdrop-blur-2xl lg:grid-cols-5">
+        <form onSubmit={submit} className="flex flex-col justify-center p-8 sm:p-12 lg:col-span-3">
+          <Link to="/" className="mb-8 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/50 px-4 py-2 text-[13px] font-bold text-[#607282] no-underline shadow-sm ring-1 ring-[#d9e3ec] transition-all hover:bg-white hover:text-[#1c2731] hover:shadow-md active:scale-95">
+            <ArrowLeft size={14} /> Back to Home
+          </Link>
+          
+          <div className="mb-8 flex items-center gap-4">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-tr from-[#0062CC] to-[#007AFF] text-xl font-bold text-white shadow-[0_8px_20px_rgba(0,122,255,0.35)]">T</div>
+            <div>
+              <p className="text-xl font-extrabold tracking-tight text-[#1c2731]">Transitely</p>
+              <p className="text-[13px] font-bold text-[#007AFF]">User Portal</p>
+            </div>
           </div>
-          {message ? <p className="mt-3 text-sm text-[#b04545]">{message}</p> : null}
-          <button disabled={busy} className="mt-4 w-full rounded-md bg-[#1092ce] py-2.5 font-semibold text-white shadow-[0_10px_18px_rgba(16,146,206,0.28)] transition-colors hover:bg-[#0d80b4] disabled:opacity-70">{busy ? 'Creating account...' : 'Register'}</button>
-          <p className="mt-4 text-sm text-[#607282]">Already have an account? <Link className="font-semibold text-[#0f7db4]" to="/user/login">Sign in</Link></p>
+
+          <div className="mb-8">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-[#8a9aab]">User Onboarding</p>
+            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#1c2731]">Create your account</h2>
+            <p className="mt-3 text-[15px] leading-relaxed text-[#607282]">Register to book rides, track trips, and manage payments securely.</p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="group">
+              <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#8a9aab] transition-colors group-focus-within:text-[#007AFF]">Full Name</label>
+              <input value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} className="w-full rounded-2xl border-2 border-transparent bg-white/50 px-5 py-3.5 text-[15px] text-[#1c2731] placeholder-[#a0b0c0] shadow-sm ring-1 ring-[#d9e3ec] backdrop-blur-md transition-all focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#007AFF]/10" placeholder="e.g. John Doe" />
+            </div>
+            <div className="group">
+              <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#8a9aab] transition-colors group-focus-within:text-[#007AFF]">Email Address</label>
+              <input value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} className="w-full rounded-2xl border-2 border-transparent bg-white/50 px-5 py-3.5 text-[15px] text-[#1c2731] placeholder-[#a0b0c0] shadow-sm ring-1 ring-[#d9e3ec] backdrop-blur-md transition-all focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#007AFF]/10" placeholder="rider@example.com" />
+            </div>
+            <div className="group">
+              <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#8a9aab] transition-colors group-focus-within:text-[#007AFF]">Phone Number</label>
+              <input value={form.phone} onChange={(e) => setForm({...form, phone: e.target.value})} className="w-full rounded-2xl border-2 border-transparent bg-white/50 px-5 py-3.5 text-[15px] text-[#1c2731] placeholder-[#a0b0c0] shadow-sm ring-1 ring-[#d9e3ec] backdrop-blur-md transition-all focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#007AFF]/10" placeholder="01XXXXXXXXX" />
+            </div>
+            <div className="group">
+              <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#8a9aab] transition-colors group-focus-within:text-[#007AFF]">Password</label>
+              <input value={form.password} onChange={(e) => setForm({...form, password: e.target.value})} type="password" className="w-full rounded-2xl border-2 border-transparent bg-white/50 px-5 py-3.5 text-[15px] text-[#1c2731] placeholder-[#a0b0c0] shadow-sm ring-1 ring-[#d9e3ec] backdrop-blur-md transition-all focus:border-[#007AFF] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#007AFF]/10" placeholder="Create a secure password" />
+            </div>
+          </div>
+
+          {message && (
+            <div className="mt-5 flex items-start gap-3 rounded-2xl bg-[#ff3b30]/10 p-4 text-[14px] text-[#ff3b30]">
+              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+              <p className="font-medium">{message}</p>
+            </div>
+          )}
+
+          <button disabled={busy} className="mt-8 group flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#007AFF] to-[#0062CC] py-4 text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(0,122,255,0.25)] transition-all hover:shadow-[0_12px_25px_rgba(0,122,255,0.35)] active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none">
+            {busy ? 'Creating Account...' : 'Create Account'}
+            {!busy && <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />}
+          </button>
+
+          <p className="mt-8 text-center text-[14px] font-medium text-[#607282]">
+            Already have an account? <Link className="font-bold text-[#007AFF] no-underline transition-colors hover:text-[#0062CC]" to="/rider/login">Sign in here</Link>
+          </p>
         </form>
 
-        <aside className="relative overflow-hidden bg-gradient-to-br from-[#0f7db4] via-[#0f6fa0] to-[#0a567c] p-6 text-white md:p-10">
-          <p className="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#bde7ff]">Verified Safety Layers</p>
-          <h3 className="mt-2 text-3xl font-bold">Ride with confidence from day one</h3>
-          <p className="mt-3 max-w-md text-sm text-[#e2f4ff]">
-            Transitely safeguards every trip with verified driver profiles, route intelligence, and secure support channels.
-          </p>
-          <ul className="mt-6 space-y-2 text-sm text-[#e8f7ff]">
-            <li>Identity checks before activation</li>
-            <li>SOS and emergency callback support</li>
-            <li>Encrypted trip and payment records</li>
-          </ul>
-          <svg viewBox="0 0 420 260" className="mt-8 w-full max-w-[420px]" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="38" y="32" width="344" height="206" rx="30" fill="#0B4E70" />
-            <circle cx="210" cy="90" r="36" fill="#A9E5FF" />
-            <path d="M150 184C150 150 176 130 210 130C244 130 270 150 270 184V194H150V184Z" fill="#A9E5FF" />
-            <rect x="76" y="52" width="52" height="16" rx="8" fill="#D8F3FF" />
-            <rect x="292" y="52" width="52" height="16" rx="8" fill="#D8F3FF" />
-            <path d="M210 20L222 44H248L227 59L235 84L210 68L185 84L193 59L172 44H198L210 20Z" fill="#D8F3FF" />
-          </svg>
+        <aside className="relative hidden flex-col justify-center overflow-hidden bg-gradient-to-br from-[#007AFF] via-[#0062CC] to-[#004bb5] p-12 text-white lg:col-span-2 lg:flex">
+          <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/20 blur-[60px]"></div>
+          <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-white/20 blur-[60px]"></div>
+          
+          <div className="relative z-10">
+            <div className="mb-6 inline-flex rounded-2xl bg-white/10 p-4 shadow-inner backdrop-blur-md">
+              <ShieldCheck size={32} className="text-blue-100" />
+            </div>
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-blue-200/80">Verified Safety</p>
+            <h3 className="mt-3 text-3xl font-black leading-[1.15] tracking-tight">Ride with confidence<br/>from day one.</h3>
+            <p className="mt-5 text-[15px] leading-relaxed text-blue-100/90">
+              Transitely safeguards every trip with verified driver profiles, intelligent routing, and secure support channels.
+            </p>
+            
+            <div className="mt-10 space-y-4">
+              {[
+                { icon: <Lock size={16} className="text-blue-100" />, text: 'Identity verification' },
+                { icon: <AlertTriangle size={16} className="text-blue-100" />, text: 'SOS & emergency support' },
+                { icon: <ShieldCheck size={16} className="text-blue-100" />, text: 'Encrypted trip records' },
+                { icon: <Star size={16} className="text-blue-100" />, text: '5% cashback on repeat drivers' }
+              ].map((f, i) => (
+                <div key={i} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-[14px] font-medium shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">{f.icon}</div>
+                  <span>{f.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </aside>
-      </section>
-    </Layout>
+      </div>
+    </main>
   )
 }
