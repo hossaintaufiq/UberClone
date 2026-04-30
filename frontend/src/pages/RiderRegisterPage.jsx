@@ -29,7 +29,7 @@ export default function RiderRegisterPage() {
 
   return (
     <main className="flex h-screen items-center justify-center overflow-y-auto bg-gradient-to-br from-[#edf3f9] via-white to-[#e8f4fd] p-4 font-sans selection:bg-[#007AFF] selection:text-white">
-      <div className="grid h-full w-full max-w-[1000px] overflow-hidden rounded-[2.5rem] border border-white/60 bg-white/70 shadow-[0_24px_60px_rgba(14,47,74,0.08)] backdrop-blur-2xl lg:grid-cols-5">
+      <div className="fade-up grid h-full w-full max-w-[1000px] overflow-hidden rounded-[2.5rem] border border-white/60 bg-white/70 shadow-[0_24px_60px_rgba(14,47,74,0.08)] backdrop-blur-2xl lg:grid-cols-5">
         <form onSubmit={submit} className="flex h-full flex-col justify-start overflow-y-auto p-8 sm:p-10 lg:col-span-3">
           <Link to="/" className="mb-8 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/50 px-4 py-2 text-[13px] font-bold text-[#607282] no-underline shadow-sm ring-1 ring-[#d9e3ec] transition-all hover:bg-white hover:text-[#1c2731] hover:shadow-md active:scale-95">
             <ArrowLeft size={14} /> Back to Home
@@ -75,7 +75,7 @@ export default function RiderRegisterPage() {
             </div>
           )}
 
-          <button disabled={busy} className="mt-8 group flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#007AFF] to-[#0062CC] py-4 text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(0,122,255,0.25)] transition-all hover:shadow-[0_12px_25px_rgba(0,122,255,0.35)] active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none">
+          <button disabled={busy} className="glass-btn mt-8 group flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#007AFF] to-[#0062CC] py-4 text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(0,122,255,0.25)] transition-all hover:shadow-[0_12px_25px_rgba(0,122,255,0.35)] active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none">
             {busy ? 'Creating Account...' : 'Create Account'}
             {!busy && <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />}
           </button>
@@ -90,7 +90,7 @@ export default function RiderRegisterPage() {
           <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-white/20 blur-[60px]"></div>
           
           <div className="relative z-10 mt-6">
-            <div className="mb-6 inline-flex rounded-2xl bg-white/10 p-4 shadow-inner backdrop-blur-md">
+            <div className="pulse-glow mb-6 inline-flex rounded-2xl bg-white/10 p-4 shadow-inner backdrop-blur-md">
               <ShieldCheck size={32} className="text-blue-100" />
             </div>
             <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-blue-200/80">Verified Safety</p>
@@ -106,7 +106,7 @@ export default function RiderRegisterPage() {
                 { icon: <ShieldCheck size={16} className="text-blue-100" />, text: 'Encrypted trip records' },
                 { icon: <Star size={16} className="text-blue-100" />, text: '5% cashback on repeat drivers' }
               ].map((f, i) => (
-                <div key={i} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-3.5 text-[13px] font-medium shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1">
+                <div key={i} className="interactive-card flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-3.5 text-[13px] font-medium shadow-sm backdrop-blur-md transition-transform">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">{f.icon}</div>
                   <span>{f.text}</span>
                 </div>

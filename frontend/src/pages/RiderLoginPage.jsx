@@ -33,7 +33,7 @@ export default function RiderLoginPage() {
 
   return (
     <main className="flex h-screen items-center justify-center overflow-y-auto bg-[#edf3f9] selection:bg-[#007AFF]/20 selection:text-[#007AFF] p-4 sm:p-8">
-      <div className="relative h-full w-full max-w-7xl overflow-hidden rounded-[3rem] bg-white shadow-[0_20px_80px_rgba(14,47,74,0.08)] ring-1 ring-[#d9e3ec] lg:flex">
+      <div className="fade-up relative h-full w-full max-w-7xl overflow-hidden rounded-[3rem] bg-white shadow-[0_20px_80px_rgba(14,47,74,0.08)] ring-1 ring-[#d9e3ec] lg:flex">
         
         {/* Left Side: Animated Brand Area */}
         <aside className="relative hidden h-full w-full flex-col overflow-hidden bg-[#1c2731] p-8 lg:flex lg:w-[45%] xl:p-10">
@@ -44,7 +44,7 @@ export default function RiderLoginPage() {
           
           <div className="relative z-10">
             <div className="flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#007AFF] text-xl font-black text-white shadow-[0_8px_20px_rgba(0,122,255,0.4)] ring-1 ring-white/20">T</div>
+              <div className="pulse-glow grid h-12 w-12 place-items-center rounded-2xl bg-[#007AFF] text-xl font-black text-white shadow-[0_8px_20px_rgba(0,122,255,0.4)] ring-1 ring-white/20">T</div>
               <span className="text-xl font-black tracking-tight text-white">Transitely</span>
             </div>
           </div>
@@ -67,7 +67,7 @@ export default function RiderLoginPage() {
                 { icon: <CheckCircle2 size={20} className="text-[#34c759]" />, title: 'Verified Captains', desc: 'Every driver passes strict background checks.' },
                 { icon: <Banknote size={20} className="text-[#ff9500]" />, title: 'Upfront Pricing', desc: 'No hidden fees. Pay exactly what you see.' }
               ].map((f, i) => (
-                <div key={i} className="group flex items-start gap-3 rounded-[1.3rem] bg-white/5 p-3.5 ring-1 ring-white/10 backdrop-blur-md transition-all hover:bg-white/10 hover:ring-white/20">
+                <div key={i} className="interactive-card group flex items-start gap-3 rounded-[1.3rem] bg-white/5 p-3.5 ring-1 ring-white/10 backdrop-blur-md transition-all hover:bg-white/10 hover:ring-white/20">
                   <div className="rounded-xl bg-white/10 p-2.5 ring-1 ring-white/20">{f.icon}</div>
                   <div>
                     <h3 className="text-[15px] font-bold text-white group-hover:text-blue-100">{f.title}</h3>
@@ -136,7 +136,7 @@ export default function RiderLoginPage() {
 
               <button 
                 disabled={busy} 
-                className="group mt-4 flex w-full items-center justify-center gap-2 rounded-[1.5rem] bg-gradient-to-r from-[#007AFF] to-[#0062CC] py-5 text-[16px] font-black text-white shadow-[0_8px_25px_rgba(0,122,255,0.35)] transition-all hover:shadow-[0_15px_35px_rgba(0,122,255,0.45)] active:scale-95 disabled:opacity-60 disabled:hover:shadow-[0_8px_25px_rgba(0,122,255,0.35)]"
+                className="glass-btn group mt-4 flex w-full items-center justify-center gap-2 rounded-[1.5rem] bg-gradient-to-r from-[#007AFF] to-[#0062CC] py-5 text-[16px] font-black text-white shadow-[0_8px_25px_rgba(0,122,255,0.35)] transition-all hover:shadow-[0_15px_35px_rgba(0,122,255,0.45)] active:scale-95 disabled:opacity-60 disabled:hover:shadow-[0_8px_25px_rgba(0,122,255,0.35)]"
               >
                 {busy ? 'Authenticating...' : 'Sign In Securely'} <Navigation size={18} className="transition-transform group-hover:translate-x-1" />
               </button>

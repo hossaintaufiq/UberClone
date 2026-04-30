@@ -55,7 +55,15 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminLayout title="System Dashboard">
-      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+      <div className="fade-up space-y-6 animate-in fade-in slide-in-from-bottom-4">
+        <div className="flex justify-end">
+          <Link
+            to="/"
+            className="glass-btn inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-[13px] font-bold text-[#607282] ring-1 ring-[#d9e3ec] transition-all hover:bg-[#007AFF] hover:text-white hover:shadow-sm"
+          >
+            Back to Home
+          </Link>
+        </div>
         
         {/* Welcome & Revenue Overview */}
         <div className="grid gap-6 lg:grid-cols-[1fr_350px]">
@@ -88,7 +96,7 @@ export default function AdminDashboardPage() {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
             {cards.map((c) => (
-              <div key={c.label} className={`group relative overflow-hidden rounded-[2rem] bg-gradient-to-b ${c.bg} p-6 shadow-sm ring-1 ring-[#d9e3ec] transition-all hover:-translate-y-1 hover:shadow-md`}>
+              <div key={c.label} className={`interactive-card group relative overflow-hidden rounded-[2rem] bg-gradient-to-b ${c.bg} p-6 shadow-sm ring-1 ring-[#d9e3ec] transition-all hover:shadow-md`}>
                 <div className={`mb-3 inline-flex rounded-[1.2rem] ${c.iconBg} p-3 ${c.color} transition-transform group-hover:scale-110`}>
                   {c.icon}
                 </div>

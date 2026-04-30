@@ -52,7 +52,7 @@ export default function HomePage() {
     <main className="min-h-screen bg-gradient-to-br from-[#edf3f9] via-[#ffffff] to-[#e8f4fd] text-[#1c2731] font-sans selection:bg-[#007AFF] selection:text-white">
       {/* Header */}
       <header className="sticky top-4 z-50 px-4">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 rounded-full border border-white/60 bg-white/70 px-5 py-3.5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl sm:px-8 sm:py-4 transition-all duration-300 hover:bg-white/80">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 rounded-full border border-white/60 bg-white/70 px-5 py-3.5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl sm:px-8 sm:py-4 transition-all duration-300 hover:bg-white/80 fade-up">
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-tr from-[#0062CC] to-[#007AFF] text-lg font-bold text-white shadow-[0_4px_20px_rgba(0,122,255,0.4)]">T</div>
             <p className="text-xl font-extrabold tracking-tight text-[#1c2731]">Transitely</p>
@@ -61,7 +61,7 @@ export default function HomePage() {
           <nav className="hidden items-center gap-8 md:flex">
             <Link to="/rider/login" className="text-[15px] font-semibold text-[#607282] no-underline transition-all hover:text-[#007AFF] hover:-translate-y-0.5">User Login</Link>
             <Link to="/driver/login" className="text-[15px] font-semibold text-[#607282] no-underline transition-all hover:text-[#007AFF] hover:-translate-y-0.5">Driver Login</Link>
-            <Link to="/admin/dashboard" className="rounded-full bg-gradient-to-r from-[#007AFF] to-[#0062CC] px-7 py-3 text-[15px] font-bold text-white no-underline shadow-[0_8px_20px_rgba(0,122,255,0.25)] transition-all hover:-translate-y-1 hover:shadow-[0_12px_25px_rgba(0,122,255,0.4)] active:scale-95">Admin Portal</Link>
+            <Link to="/admin/dashboard" className="glass-btn rounded-full bg-gradient-to-r from-[#007AFF] to-[#0062CC] px-7 py-3 text-[15px] font-bold text-white no-underline shadow-[0_8px_20px_rgba(0,122,255,0.25)] transition-all hover:-translate-y-1 hover:shadow-[0_12px_25px_rgba(0,122,255,0.4)] active:scale-95">Admin Portal</Link>
           </nav>
 
           <button type="button" className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/50 bg-white/50 text-[#1c2731] shadow-sm backdrop-blur-md transition-active active:scale-95 md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
@@ -82,7 +82,7 @@ export default function HomePage() {
 
       {/* Hero */}
       <section className="relative mx-auto max-w-7xl px-4 py-20 text-center sm:px-5 md:py-32 overflow-hidden">
-        <div className="absolute left-1/2 top-1/2 -z-10 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#007AFF]/10 blur-[100px]"></div>
+        <div className="absolute left-1/2 top-1/2 -z-10 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#007AFF]/10 blur-[100px] float-soft"></div>
         
         <div className="mb-6 inline-flex animate-fade-in-up rounded-full border border-blue-100 bg-blue-50/50 px-5 py-2 text-[13px] font-extrabold tracking-[0.15em] text-[#007AFF] shadow-sm backdrop-blur-md">
           SMART MOBILITY PLATFORM
@@ -94,7 +94,7 @@ export default function HomePage() {
           Experience the next generation of smart urban mobility. Book rides, manage fleets, and track everything in real-time.
         </p>
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Link to="/rider/register" className="group flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#007AFF] to-[#0062CC] px-9 py-4.5 text-[15px] font-bold text-white no-underline shadow-[0_8px_25px_rgba(0,122,255,0.3)] transition-all hover:-translate-y-1 hover:shadow-[0_15px_35px_rgba(0,122,255,0.4)] active:scale-95 sm:w-auto">
+          <Link to="/rider/register" className="glass-btn group flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#007AFF] to-[#0062CC] px-9 py-4.5 text-[15px] font-bold text-white no-underline shadow-[0_8px_25px_rgba(0,122,255,0.3)] transition-all hover:-translate-y-1 hover:shadow-[0_15px_35px_rgba(0,122,255,0.4)] active:scale-95 sm:w-auto">
             Get Started <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Link>
           <Link to="/driver/register" className="flex w-full items-center justify-center rounded-full border-2 border-transparent bg-white px-9 py-4.5 text-[15px] font-bold text-[#1c2731] no-underline shadow-sm ring-1 ring-[#d9e3ec] transition-all hover:-translate-y-1 hover:shadow-lg active:scale-95 sm:w-auto">
@@ -107,7 +107,7 @@ export default function HomePage() {
       <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-5">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {stats.map((s) => (
-            <div key={s.label} className="group relative overflow-hidden rounded-[2rem] border border-white/60 bg-white/40 p-8 text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5 hover:bg-white/80 hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)]">
+            <div key={s.label} className="interactive-card group relative overflow-hidden rounded-[2rem] border border-white/60 bg-white/40 p-8 text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl transition-all duration-500 hover:bg-white/80">
               <div className="absolute inset-0 bg-gradient-to-br from-[#007AFF]/5 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"></div>
               <p className="text-4xl font-black tracking-tight text-[#1c2731] transition-transform duration-500 group-hover:scale-105 group-hover:text-[#007AFF] sm:text-5xl">{s.value}</p>
               <p className="mt-3 text-[13px] font-bold uppercase tracking-[0.1em] text-[#8a9aab]">{s.label}</p>
@@ -124,7 +124,7 @@ export default function HomePage() {
         </div>
         <div className="grid gap-6 md:grid-cols-3 lg:gap-8">
           {portals.map((p) => (
-            <article key={p.title} className="group flex flex-col overflow-hidden rounded-[2rem] border border-white/60 bg-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:bg-white/90 hover:shadow-[0_20px_40px_rgba(16,47,74,0.1)]">
+            <article key={p.title} className="interactive-card group flex flex-col overflow-hidden rounded-[2rem] border border-white/60 bg-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl transition-all duration-500 hover:bg-white/90">
               <div className="flex-1 p-8 sm:p-10">
                 <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-[#007AFF] shadow-sm transition-transform duration-500 group-hover:scale-110 group-hover:bg-[#007AFF] group-hover:text-white">
                   <ShieldCheck size={24} />
@@ -160,7 +160,7 @@ export default function HomePage() {
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
-            <article key={f.title} className="group relative overflow-hidden rounded-[2rem] border border-white/60 bg-white/50 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5 hover:bg-white hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)]">
+            <article key={f.title} className="interactive-card group relative overflow-hidden rounded-[2rem] border border-white/60 bg-white/50 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl transition-all duration-500 hover:bg-white">
               <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-gradient-to-br from-[#007AFF]/5 to-transparent opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100"></div>
               <div className="mb-6 inline-flex rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 p-4 text-[#007AFF] shadow-sm transition-transform duration-500 group-hover:scale-110 group-hover:shadow-md">{f.icon}</div>
               <h3 className="text-xl font-extrabold tracking-tight text-[#1c2731]">{f.title}</h3>

@@ -39,7 +39,7 @@ export default function DriverRegisterPage() {
   return (
     <main className="flex h-screen items-center justify-center overflow-y-auto bg-[#edf3f9] selection:bg-[#007AFF]/20 selection:text-[#007AFF] px-4 py-6 sm:px-8 sm:py-8">
       
-      <div className="relative h-full w-full max-w-[640px] pt-14">
+      <div className="fade-up relative h-full w-full max-w-[640px] pt-14">
         
         {/* Floating Return Button */}
         <Link to="/" className="group absolute left-0 top-0 flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-[13px] font-bold text-[#607282] shadow-sm ring-1 ring-[#d9e3ec] transition-all hover:bg-[#007AFF] hover:text-white">
@@ -54,7 +54,7 @@ export default function DriverRegisterPage() {
             <div className="absolute -right-10 -top-20 h-64 w-64 rounded-full bg-[#007AFF] opacity-30 blur-[80px]"></div>
             
             <div className="relative z-10 text-center">
-              <div className="mx-auto mb-6 grid h-16 w-16 place-items-center rounded-[1.2rem] bg-gradient-to-tr from-[#007AFF] to-[#0062CC] text-white shadow-[0_8px_20px_rgba(0,122,255,0.4)] ring-4 ring-white/10">
+              <div className="pulse-glow mx-auto mb-6 grid h-16 w-16 place-items-center rounded-[1.2rem] bg-gradient-to-tr from-[#007AFF] to-[#0062CC] text-white shadow-[0_8px_20px_rgba(0,122,255,0.4)] ring-4 ring-white/10">
                 <Car size={32} />
               </div>
               <h1 className="text-3xl font-black text-white">Join the Transitely Fleet</h1>
@@ -117,7 +117,7 @@ export default function DriverRegisterPage() {
                     </div>
                   </div>
 
-                  <button type="button" onClick={() => { if (form.name && form.phone && form.password) setStep(2); else setMessage('Fill required fields to continue.') }} className="mt-8 flex w-full items-center justify-center gap-2 rounded-[1.5rem] bg-[#1c2731] py-4 text-[15px] font-black text-white shadow-[0_8px_20px_rgba(28,39,49,0.2)] transition-all hover:shadow-lg active:scale-95">
+                  <button type="button" onClick={() => { if (form.name && form.phone && form.password) setStep(2); else setMessage('Fill required fields to continue.') }} className="glass-btn mt-8 flex w-full items-center justify-center gap-2 rounded-[1.5rem] bg-[#1c2731] py-4 text-[15px] font-black text-white shadow-[0_8px_20px_rgba(28,39,49,0.2)] transition-all hover:shadow-lg active:scale-95">
                     Proceed to Documents <ArrowLeft size={18} className="rotate-180" />
                   </button>
                 </div>
@@ -162,7 +162,7 @@ export default function DriverRegisterPage() {
                     <button type="button" onClick={() => setStep(1)} className="flex items-center justify-center rounded-[1.5rem] bg-[#f8fafc] px-6 py-4 text-[14px] font-bold text-[#607282] ring-1 ring-[#d9e3ec] transition-colors hover:bg-white hover:text-[#1c2731]">
                       <ArrowLeft size={18} />
                     </button>
-                    <button type="button" onClick={() => setStep(3)} className="flex flex-1 items-center justify-center gap-2 rounded-[1.5rem] bg-[#1c2731] py-4 text-[15px] font-black text-white shadow-[0_8px_20px_rgba(28,39,49,0.2)] transition-all hover:shadow-lg active:scale-95">
+                    <button type="button" onClick={() => setStep(3)} className="glass-btn flex flex-1 items-center justify-center gap-2 rounded-[1.5rem] bg-[#1c2731] py-4 text-[15px] font-black text-white shadow-[0_8px_20px_rgba(28,39,49,0.2)] transition-all hover:shadow-lg active:scale-95">
                       Verify Details <ArrowLeft size={18} className="rotate-180" />
                     </button>
                   </div>
@@ -213,7 +213,7 @@ export default function DriverRegisterPage() {
                     <button type="button" onClick={() => setStep(2)} className="flex items-center justify-center rounded-[1.5rem] bg-[#f8fafc] px-6 py-4 text-[14px] font-bold text-[#607282] ring-1 ring-[#d9e3ec] transition-colors hover:bg-white hover:text-[#1c2731]">
                       <ArrowLeft size={18} />
                     </button>
-                    <button disabled={busy} className="flex flex-1 items-center justify-center gap-2 rounded-[1.5rem] bg-gradient-to-r from-[#007AFF] to-[#0062CC] py-4 text-[16px] font-black text-white shadow-[0_8px_25px_rgba(0,122,255,0.35)] transition-all hover:shadow-[0_15px_35px_rgba(0,122,255,0.45)] active:scale-95 disabled:opacity-60">
+                    <button disabled={busy} className="glass-btn flex flex-1 items-center justify-center gap-2 rounded-[1.5rem] bg-gradient-to-r from-[#007AFF] to-[#0062CC] py-4 text-[16px] font-black text-white shadow-[0_8px_25px_rgba(0,122,255,0.35)] transition-all hover:shadow-[0_15px_35px_rgba(0,122,255,0.45)] active:scale-95 disabled:opacity-60">
                       {busy ? 'Processing...' : 'Submit Registration'} <Navigation size={18} />
                     </button>
                   </div>
