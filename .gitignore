@@ -1,0 +1,6 @@
+# Local SDKs (machine-specific, do not push)
+.flutter_sdk/
+.jdk-17/
+
+# Node
+node_modules/

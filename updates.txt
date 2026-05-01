@@ -27,3 +27,33 @@ Since pulling the original repository, we completely overhauled the visual inter
 ## Infrastructure & Environment Fixes
 - **Vite & Tailwind Compatibility:** Discovered that the repository had recently upgraded to Vite 6 and Tailwind 4, which broke the UI entirely on Node 18 environments. 
 - **Resolution:** Safely downgraded to `vite@^5.0.0` and `tailwindcss@^3.4.0`, reconfigured `postcss.config.js` and `tailwind.config.js`, and fully restored local development and CSS compilation functionality.
+
+## Flutter Mobile App — UI Polish (frontend_app)
+Upgraded the Flutter mobile app's visual presentation across all screens while preserving every existing functionality, API call, and navigation flow. The original light blue color scheme (`#007AFF`) remains unchanged.
+
+### Home Portal Screen
+- **Entrance Animations:** Added staggered fade + slide-up transitions. The hero, stats row, and portal cards animate in sequentially on page load using a shared `AnimationController`.
+- **Hero Section:** Added a subtle drop shadow behind the gradient card for depth.
+- **Stats Row:** Added contextual Material Icons (route, people, location) above each stat for better scannability.
+- **Portal Cards:** Replaced flat `CircleAvatar` icons with gradient icon containers (blue for Rider, green for Driver) that have matching glow shadows. Login buttons now use gradient fills with soft shadows instead of flat dark grey.
+- **Header Bar Logo:** Added a soft blue glow shadow behind the "T" logo container.
+
+### Auth Screen (Login / Register)
+- **Input Fields:** Added prefix Material Icons (person, email, phone, lock) to each text field. Added a blue highlight border on focus.
+- **Portal Badge:** Replaced the flat blue text badge with a gradient pill matching the portal identity (blue for Rider, green for Driver).
+- **Error Display:** Replaced plain red text with a styled error container including an error icon.
+- **Submit Button:** Changed from a flat blue button to a gradient button with a glow shadow. Loading state now shows a circular spinner instead of "Please wait..." text.
+
+### Admin Dashboard
+- **Stat Cards:** Replaced `CircleAvatar` icons with rounded-square icon containers with tinted backgrounds.
+- **Hero Banner:** Updated gradient to a richer dark blue palette.
+
+### Session (Success) Screen
+- **Success Indicator:** Replaced the flat green checkmark icon with a gradient circle (green) with a glow shadow and a white check icon inside.
+- **Action Button:** Changed to a full-width gradient button with a blue glow shadow.
+
+### Environment Setup
+- **Flutter SDK:** Installed Flutter 3.19.6 locally (compatible with macOS 12) at `.flutter_sdk/`. The project's `pubspec.yaml` (`sdk: ">=3.3.0 <4.0.0"`) remains compatible with newer Flutter versions used by other developers.
+- **Java 17:** Downloaded and configured Temurin JDK 17 at `.jdk-17/` to resolve Gradle build compatibility with the system's Java 24 installation.
+- **Dependency Fix:** Downgraded `shared_preferences` from `^2.3.2` to `^2.2.3` to match the Dart 3.3.4 SDK bundled with Flutter 3.19.6.
+- **Platform Scaffolding:** Ran `flutter create .` to generate the missing `android/`, `ios/`, `web/`, and `macos/` platform directories required for building.
