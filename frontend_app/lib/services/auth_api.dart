@@ -80,22 +80,6 @@ class AuthApi {
     return token;
   }
 
-  static Future<String> adminLogin({
-    required String phone,
-    required String password,
-  }) async {
-    final uri = Uri.parse("${AppConfig.baseUrl}/api/auth/admin/login");
-    final response = await http.post(
-      uri,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"phone": phone, "password": password}),
-    );
-    final token = _parseToken(response);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(AuthPrefs.adminToken, token);
-    return token;
-  }
-
   static String _parseToken(http.Response response) {
     final data = jsonDecode(response.body);
     if (data is! Map) throw Exception("Unexpected server response");

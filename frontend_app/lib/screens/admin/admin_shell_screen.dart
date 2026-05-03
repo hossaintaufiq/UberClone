@@ -17,7 +17,7 @@ class AdminShellScreen extends StatefulWidget {
 class _AdminShellScreenState extends State<AdminShellScreen> {
   int _ix = 0;
 
-  Future<void> _logout() async {
+  Future<void> _backHome() async {
     final p = await SharedPreferences.getInstance();
     await p.remove(AuthPrefs.adminToken);
     if (!mounted) return;
@@ -58,8 +58,8 @@ class _AdminShellScreenState extends State<AdminShellScreen> {
       appBar: AppBar(
         title: const Text("Admin Portal"),
         actions: [
-          IconButton(onPressed: _assistant, icon: const Icon(Icons.auto_awesome_rounded)),
-          IconButton(onPressed: _logout, icon: const Icon(Icons.logout_rounded)),
+          IconButton(onPressed: _assistant, tooltip: "Assistant", icon: const Icon(Icons.auto_awesome_rounded)),
+          IconButton(onPressed: _backHome, tooltip: "Back to home", icon: const Icon(Icons.home_outlined)),
         ],
       ),
       body: pages[_ix],

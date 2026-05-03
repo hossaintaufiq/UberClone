@@ -56,7 +56,7 @@ class NavAssistantSheet extends StatefulWidget {
 
 class _NavAssistantSheetState extends State<NavAssistantSheet> {
   final _ctrl = TextEditingController();
-  final _msgs = <({bool user; String text})>[];
+  final _msgs = <({bool user, String text})>[];
   final _scroll = ScrollController();
 
   @override

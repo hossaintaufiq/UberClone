@@ -1,7 +1,7 @@
 import "package:flutter/material.dart";
 
 import "../core/app_theme.dart";
-import "admin/admin_login_screen.dart";
+import "admin/admin_shell_screen.dart";
 import "auth_screen.dart";
 
 class HomePortalScreen extends StatefulWidget {
@@ -37,7 +37,7 @@ class _HomePortalScreenState extends State<HomePortalScreen> with SingleTickerPr
               title: "Transitely",
               action: _GlowButton(
                 label: "Admin",
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminLoginScreen())),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminShellScreen())),
               ),
             ),
             const SizedBox(height: 20),
@@ -78,6 +78,21 @@ class _HomePortalScreenState extends State<HomePortalScreen> with SingleTickerPr
                   secondaryLabel: "Register",
                   onPrimary: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthScreen(mode: AuthMode.driverLogin))),
                   onSecondary: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthScreen(mode: AuthMode.driverRegister))),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SlideTransition(
+              position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(CurvedAnimation(parent: _anim, curve: const Interval(0.6, 1, curve: Curves.easeOut))),
+              child: FadeTransition(
+                opacity: CurvedAnimation(parent: _anim, curve: const Interval(0.6, 1)),
+                child: _PortalTile(
+                  title: "Admin Portal",
+                  subtitle: "Fleet oversight, riders & drivers, rides and revenue — same as web (no sign-in).",
+                  icon: Icons.admin_panel_settings_rounded,
+                  gradient: const [Color(0xFF1C2731), Color(0xFF334155)],
+                  primaryLabel: "Open dashboard",
+                  onPrimary: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminShellScreen())),
                 ),
               ),
             ),
@@ -214,9 +229,9 @@ class _PortalTile extends StatelessWidget {
   final IconData icon;
   final List<Color> gradient;
   final String primaryLabel;
-  final String secondaryLabel;
+  final String? secondaryLabel;
   final VoidCallback onPrimary;
-  final VoidCallback onSecondary;
+  final VoidCallback? onSecondary;
 
   const _PortalTile({
     required this.title,
@@ -224,13 +239,31 @@ class _PortalTile extends StatelessWidget {
     required this.icon,
     required this.gradient,
     required this.primaryLabel,
-    required this.secondaryLabel,
+    this.secondaryLabel,
     required this.onPrimary,
-    required this.onSecondary,
-  });
+    this.onSecondary,
+  }) : assert((secondaryLabel == null) == (onSecondary == null), "secondaryLabel and onSecondary must both be set or both null");
 
   @override
   Widget build(BuildContext context) {
+    final primaryBtn = Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(colors: gradient),
+        boxShadow: [BoxShadow(color: gradient.first.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: FilledButton(
+        onPressed: onPrimary,
+        style: FilledButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+        child: Text(primaryLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
+      ),
+    );
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: kCardBorder)),
@@ -253,40 +286,25 @@ class _PortalTile extends StatelessWidget {
         const SizedBox(height: 10),
         Text(subtitle, style: const TextStyle(color: kMuted, fontSize: 13)),
         const SizedBox(height: 16),
-        Row(children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                gradient: LinearGradient(colors: gradient),
-                boxShadow: [BoxShadow(color: gradient.first.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
-              ),
-              child: FilledButton(
-                onPressed: onPrimary,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
+        if (secondaryLabel != null && onSecondary != null)
+          Row(children: [
+            Expanded(child: primaryBtn),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: onSecondary,
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: gradient.first.withOpacity(0.4)),
+                  foregroundColor: gradient.first,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: Text(primaryLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
+                child: Text(secondaryLabel!, style: const TextStyle(fontWeight: FontWeight.w700)),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: OutlinedButton(
-              onPressed: onSecondary,
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: gradient.first.withOpacity(0.4)),
-                foregroundColor: gradient.first,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              child: Text(secondaryLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
-            ),
-          ),
-        ]),
+          ])
+        else
+          SizedBox(width: double.infinity, child: primaryBtn),
       ]),
     );
   }
