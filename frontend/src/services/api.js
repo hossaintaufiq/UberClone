@@ -19,9 +19,19 @@ export async function apiRequest(path, options = {}) {
       : options.body ? JSON.stringify(options.body) : undefined,
   })
 
-  const data = await response.json().catch(() => ({ success: false, message: 'Unexpected server response' }))
+  const raw = await response.text()
+  let data = {}
+  try {
+    data = raw ? JSON.parse(raw) : {}
+  } catch {
+    data = {
+      success: false,
+      message: raw ? `${raw.slice(0, 180)}${raw.length > 180 ? '…' : ''}` : `Server error (${response.status})`,
+    }
+  }
+
   if (!response.ok || data.success === false) {
-    const error = new Error(data.message || 'Request failed')
+    const error = new Error(data.message || `Request failed (${response.status})`)
     error.status = response.status
     throw error
   }

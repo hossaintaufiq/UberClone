@@ -9,45 +9,103 @@ const emitRide = (req, rideId, event, payload) => {
   io.to(`ride:${rideId}`).emit(event, payload);
 };
 
+const RIDE_TYPES = new Set(["single", "share", "family", "intercity-reserve", "intercity-day-trip", "intercity-inside-city"]);
+
+function normalizeRideType(value) {
+  const raw = String(value || "single")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-");
+  return RIDE_TYPES.has(raw) ? raw : "single";
+}
+
+function normalizeBookingMode(value) {
+  const raw = String(value || "full_car")
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, "_");
+  if (raw === "seat_share" || raw === "shared" || raw === "share_seats") return "seat_share";
+  return "full_car";
+}
+
 exports.requestRide = async (req, res) => {
-  const rider = await User.findById(req.user.id);
-  if (!rider || !rider.isActive) return res.status(403).json({ success: false, message: "User account unavailable." });
-  const distanceKm =
-    Number(req.body.distance_km || 0) ||
-    haversineKm(Number(req.body.pickup_lat || 0), Number(req.body.pickup_lng || 0), Number(req.body.dropoff_lat || 0), Number(req.body.dropoff_lng || 0));
-  const pricing = await calculateFare({
-    distanceKm,
-    rideType: req.body.ride_type || "single",
-    promoCode: req.body.promo_code,
-    pendingPenalty: rider.pendingPenalty || 0,
-    cashbackBalance: rider.cashbackBalance || 0,
-  });
-  const assigned = await findNearestDriver({ pickupLat: req.body.pickup_lat, pickupLng: req.body.pickup_lng });
-  const ride = await Ride.create({
-    riderId: req.user.id,
-    userId: req.user.id,
-    driverId: assigned?._id,
-    rideType: req.body.ride_type || "single",
-    pickupAddress: req.body.pickup_address,
-    dropoffAddress: req.body.dropoff_address,
-    pickupLat: req.body.pickup_lat,
-    pickupLng: req.body.pickup_lng,
-    dropoffLat: req.body.dropoff_lat,
-    dropoffLng: req.body.dropoff_lng,
-    distanceKm,
-    estimatedFare: pricing.estimatedFare,
-    fare: pricing.fare,
-    commissionAmount: pricing.commissionAmount,
-    driverEarning: pricing.driverEarning,
-    penaltyApplied: Number(rider.pendingPenalty || 0),
-    promoCode: String(req.body.promo_code || "").toUpperCase(),
-  });
-  rider.pendingPenalty = 0;
-  await rider.save();
-  if (assigned?._id) {
-    await Notification.create({ userId: assigned._id, title: "New ride request", message: `New ${ride.rideType} ride request nearby.` });
+  try {
+    const rider = await User.findById(req.user.id);
+    if (!rider || !rider.isActive) return res.status(403).json({ success: false, message: "User account unavailable." });
+
+    const pickupLat = Number(req.body.pickup_lat);
+    const pickupLng = Number(req.body.pickup_lng);
+    const dropoffLat = Number(req.body.dropoff_lat);
+    const dropoffLng = Number(req.body.dropoff_lng);
+    if ([pickupLat, pickupLng, dropoffLat, dropoffLng].some((n) => Number.isNaN(n))) {
+      return res.status(400).json({ success: false, message: "Pickup and dropoff coordinates must be valid numbers." });
+    }
+
+    const distanceKm =
+      Number(req.body.distance_km || 0) ||
+      haversineKm(pickupLat, pickupLng, dropoffLat, dropoffLng);
+    const rideType = normalizeRideType(req.body.ride_type);
+    const bookingMode = normalizeBookingMode(req.body.booking_mode);
+    const vehicleCapacity = Math.min(8, Math.max(2, Number(req.body.vehicle_capacity) || 5));
+    let partySize = Math.min(vehicleCapacity, Math.max(1, Number(req.body.party_size) || 1));
+    if (bookingMode === "full_car") partySize = vehicleCapacity;
+
+    const pricing = await calculateFare({
+      distanceKm,
+      rideType,
+      promoCode: req.body.promo_code,
+      pendingPenalty: rider.pendingPenalty || 0,
+      cashbackBalance: rider.cashbackBalance || 0,
+      bookingMode,
+      vehicleCapacity,
+      partySize,
+    });
+    const assigned = await findNearestDriver({ pickupLat, pickupLng });
+    const pickupAddress = String(req.body.pickup_address || "").trim();
+    const dropoffAddress = String(req.body.dropoff_address || "").trim();
+    if (!pickupAddress || !dropoffAddress) {
+      return res.status(400).json({ success: false, message: "Pickup and dropoff addresses are required." });
+    }
+
+    const ride = await Ride.create({
+      riderId: req.user.id,
+      userId: req.user.id,
+      driverId: assigned?._id,
+      rideType,
+      bookingMode: pricing.bookingMode,
+      vehicleCapacity: pricing.vehicleCapacity,
+      partySize: pricing.partySize,
+      tripTotalAfterPromo: pricing.tripTotalAfterPromo,
+      pickupAddress,
+      dropoffAddress,
+      pickupLat,
+      pickupLng,
+      dropoffLat,
+      dropoffLng,
+      distanceKm,
+      estimatedFare: pricing.estimatedFare,
+      fare: pricing.fare,
+      commissionAmount: pricing.commissionAmount,
+      driverEarning: pricing.driverEarning,
+      penaltyApplied: Number(rider.pendingPenalty || 0),
+      promoCode: String(req.body.promo_code || "").toUpperCase(),
+    });
+    rider.pendingPenalty = 0;
+    await rider.save();
+    if (assigned?._id) {
+      await Notification.create({ userId: assigned._id, title: "New ride request", message: `New ${ride.rideType} ride request nearby.` });
+    }
+    res.status(201).json({ success: true, message: "Ride requested", data: ride });
+  } catch (error) {
+    console.error("requestRide", error);
+    if (error.name === "ValidationError") {
+      const msg = Object.values(error.errors || {})
+        .map((e) => e.message)
+        .join(" ");
+      return res.status(400).json({ success: false, message: msg || "Invalid ride data." });
+    }
+    res.status(500).json({ success: false, message: error.message || "Could not book ride. Try again." });
   }
-  res.status(201).json({ success: true, message: "Ride requested", data: ride });
 };
 
 exports.getRide = async (req, res) => {

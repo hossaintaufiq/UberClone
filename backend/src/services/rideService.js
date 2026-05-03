@@ -33,17 +33,49 @@ function rideTypeMultiplier(rideType) {
   return map[rideType] || 1;
 }
 
-async function calculateFare({ distanceKm, rideType, promoCode, pendingPenalty = 0, cashbackBalance = 0 }) {
+async function calculateFare({
+  distanceKm,
+  rideType,
+  promoCode,
+  pendingPenalty = 0,
+  cashbackBalance = 0,
+  bookingMode = "full_car",
+  vehicleCapacity = 5,
+  partySize = 1,
+}) {
   const config = await getConfig();
   const base = Number(distanceKm || 0) * Number(config.perKmFare || 40) * rideTypeMultiplier(rideType);
   const promo = (config.promoCodes || []).find((p) => p.active && p.code === String(promoCode || "").toUpperCase() && (!p.expiresAt || p.expiresAt > new Date()));
   const promoDiscount = promo ? (base * Number(promo.discountPercent || 0)) / 100 : 0;
-  const subtotal = Math.max(0, base - promoDiscount);
-  const cashbackUse = Math.min(subtotal, Number(cashbackBalance || 0));
-  const finalFare = Math.max(0, subtotal - cashbackUse + Number(pendingPenalty || 0));
+  const tripTotalAfterPromo = Math.max(0, base - promoDiscount);
+
+  const cap = Math.min(8, Math.max(2, Number(vehicleCapacity) || 5));
+  let party = Math.min(cap, Math.max(1, Number(partySize) || 1));
+  let riderPortionFactor = 1;
+  if (bookingMode === "seat_share") {
+    riderPortionFactor = party / cap;
+  } else {
+    party = cap;
+    riderPortionFactor = 1;
+  }
+
+  const riderSubtotal = tripTotalAfterPromo * riderPortionFactor;
+  const cashbackUse = Math.min(riderSubtotal, Number(cashbackBalance || 0));
+  const finalFare = Math.max(0, riderSubtotal - cashbackUse + Number(pendingPenalty || 0));
   const commissionAmount = finalFare * Number(config.commissionRate || 0.05);
   const driverEarning = finalFare - commissionAmount;
-  return { estimatedFare: Number(base.toFixed(2)), fare: Number(finalFare.toFixed(2)), commissionAmount: Number(commissionAmount.toFixed(2)), driverEarning: Number(driverEarning.toFixed(2)) };
+
+  return {
+    estimatedFare: Number(base.toFixed(2)),
+    fare: Number(finalFare.toFixed(2)),
+    commissionAmount: Number(commissionAmount.toFixed(2)),
+    driverEarning: Number(driverEarning.toFixed(2)),
+    tripTotalAfterPromo: Number(tripTotalAfterPromo.toFixed(2)),
+    riderPortionFactor,
+    vehicleCapacity: cap,
+    partySize: party,
+    bookingMode,
+  };
 }
 
 async function findNearestDriver({ pickupLat, pickupLng }) {

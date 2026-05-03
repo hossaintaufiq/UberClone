@@ -40,6 +40,17 @@ app.use("/api/admin", require("./routes/admin"));
 app.use((req, res) => res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` }));
 
 const port = Number(process.env.PORT || 5000);
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(
+      `[backend] Port ${port} is already in use. Close the other Node process (or stop duplicate terminals running npm run dev), or set PORT in .env to another port.`
+    );
+    process.exit(1);
+  }
+  throw err;
+});
+
 connectDb()
   .then(() => {
     server.listen(port, () => {

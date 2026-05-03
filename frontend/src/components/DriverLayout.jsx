@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { DRIVER_TOKEN_KEY } from '../constants/auth'
 
 import { Home, MapPin, Car, ClipboardList, Banknote, User, Menu } from 'lucide-react'
+import DriverAssistant from './DriverAssistant'
 
 const navItems = [
   { path: '/driver/dashboard', label: 'Dashboard', icon: Home },
@@ -123,6 +124,8 @@ export default function DriverLayout({ title, children }) {
           })}
         </div>
       </nav>
+
+      <DriverAssistant />
     </div>
   )
 }

@@ -64,6 +64,11 @@ input:focus, select:focus, textarea:focus {
   border-radius: var(--radius);
 }
 
+.leaflet-marker-pin-wrap {
+  background: transparent !important;
+  border: none !important;
+}
+
 @keyframes fade-up {
   from {
     opacity: 0;

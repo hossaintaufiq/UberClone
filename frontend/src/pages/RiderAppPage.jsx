@@ -1,21 +1,34 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import Layout from '../components/Layout'
+import { RideMapPicker } from '../components/Maps'
 import { TOKEN_KEY } from '../constants/auth'
 import { apiRequest } from '../services/api'
-import { User, Users, UsersRound, Building2, Route, Sun, Home, Car, MapPin, ClipboardList, Banknote, Bell, UserCircle, MessageCircle, Lightbulb, Map as MapIcon, Compass, Navigation, ArrowRight } from 'lucide-react'
+import { formatCoordsLabel, reverseGeocode } from '../services/geocoding'
+import { previewRidePricing } from '../utils/ridePricingPreview'
+import { User, Users, UsersRound, Building2, Route, Sun, Home, Car, MapPin, ClipboardList, Banknote, Bell, UserCircle, MessageCircle, Map as MapIcon, Compass, Navigation, ArrowRight } from 'lucide-react'
 
 const rideTypes = [
   { key: 'single', label: 'Single', icon: <User size={28} />, desc: 'Solo ride' },
-  { key: 'share', label: 'Share', icon: <Users size={28} />, desc: 'Split fare' },
+  { key: 'share', label: 'Share', icon: <Users size={28} />, desc: 'Cheaper pooled fare tier' },
   { key: 'family', label: 'Family', icon: <UsersRound size={28} />, desc: 'Group ride' },
 ]
+
+const CAPACITY_OPTIONS = [4, 5, 6, 7, 8]
 
 const tripCategories = [
   { key: 'city', label: 'Inside City', icon: <Building2 size={24} /> },
   { key: 'intercity_reserve', label: 'Intercity', icon: <Route size={24} /> },
   { key: 'daytrip', label: 'Day Trip', icon: <Sun size={24} /> },
 ]
+
+function rideBookingSummary(ride) {
+  if (!ride || ride.bookingMode == null) return null
+  const mode = ride.bookingMode
+  const cap = Number(ride.vehicleCapacity) || 5
+  const party = Number(ride.partySize) || 1
+  if (mode === 'seat_share') return `Seat share · ${party}/${cap} seats (equal split)`
+  return `Private car · ${cap} seats`
+}
 
 export default function RiderAppPage() {
   const navigate = useNavigate()
@@ -25,6 +38,32 @@ export default function RiderAppPage() {
   const [selectedRideType, setSelectedRideType] = useState('single')
   const [selectedTrip, setSelectedTrip] = useState('city')
   const [promoCode, setPromoCode] = useState('')
+  const [pickupPt, setPickupPt] = useState(null)
+  const [dropoffPt, setDropoffPt] = useState(null)
+  const [pickupAddressField, setPickupAddressField] = useState('')
+  const [dropoffAddressField, setDropoffAddressField] = useState('')
+  const [bookingMode, setBookingMode] = useState('full_car')
+  const [vehicleCapacity, setVehicleCapacity] = useState(5)
+  const [partySize, setPartySize] = useState(1)
+  const geocodeAbort = useRef({ pickup: null, dropoff: null })
+
+  const farePreview = useMemo(() => {
+    if (!pickupPt || !dropoffPt) return null
+    return previewRidePricing({
+      pickupLat: pickupPt.lat,
+      pickupLng: pickupPt.lng,
+      dropoffLat: dropoffPt.lat,
+      dropoffLng: dropoffPt.lng,
+      rideType: selectedRideType,
+      bookingMode,
+      vehicleCapacity,
+      partySize: bookingMode === 'seat_share' ? partySize : vehicleCapacity,
+    })
+  }, [pickupPt, dropoffPt, selectedRideType, bookingMode, vehicleCapacity, partySize])
+
+  useEffect(() => {
+    setPartySize((p) => Math.min(vehicleCapacity, Math.max(1, p)))
+  }, [vehicleCapacity])
 
   const load = async () => {
     try {
@@ -60,25 +99,70 @@ export default function RiderAppPage() {
     [state.rides]
   )
 
+  const resolvePickupOnMap = async ({ lat, lng }) => {
+    setPickupPt({ lat, lng })
+    geocodeAbort.current.pickup?.abort()
+    const ac = new AbortController()
+    geocodeAbort.current.pickup = ac
+    try {
+      const name = await reverseGeocode(lat, lng, ac.signal)
+      setPickupAddressField(name.trim() || formatCoordsLabel(lat, lng))
+    } catch (e) {
+      if (e.name !== 'AbortError') setPickupAddressField(formatCoordsLabel(lat, lng))
+    }
+  }
+
+  const resolveDropoffOnMap = async ({ lat, lng }) => {
+    setDropoffPt({ lat, lng })
+    geocodeAbort.current.dropoff?.abort()
+    const ac = new AbortController()
+    geocodeAbort.current.dropoff = ac
+    try {
+      const name = await reverseGeocode(lat, lng, ac.signal)
+      setDropoffAddressField(name.trim() || formatCoordsLabel(lat, lng))
+    } catch (e) {
+      if (e.name !== 'AbortError') setDropoffAddressField(formatCoordsLabel(lat, lng))
+    }
+  }
+
   const requestRide = async (event) => {
     event.preventDefault()
+    if (!pickupPt || !dropoffPt) {
+      setMessage('Choose pickup and dropoff on the map (OpenStreetMap).')
+      return
+    }
     const fd = new FormData(event.currentTarget)
+    const pickupAddr = pickupAddressField.trim() || formatCoordsLabel(pickupPt.lat, pickupPt.lng)
+    const dropAddr = dropoffAddressField.trim() || formatCoordsLabel(dropoffPt.lat, dropoffPt.lng)
     try {
       await apiRequest('/api/rides', {
         method: 'POST',
         body: {
-          pickup_address: fd.get('pickup_address'),
-          dropoff_address: fd.get('dropoff_address'),
-          pickup_lat: Number(fd.get('pickup_lat') || 0),
-          pickup_lng: Number(fd.get('pickup_lng') || 0),
-          dropoff_lat: Number(fd.get('dropoff_lat') || 0),
-          dropoff_lng: Number(fd.get('dropoff_lng') || 0),
+          pickup_address: pickupAddr,
+          dropoff_address: dropAddr,
+          pickup_lat: Number(pickupPt.lat),
+          pickup_lng: Number(pickupPt.lng),
+          dropoff_lat: Number(dropoffPt.lat),
+          dropoff_lng: Number(dropoffPt.lng),
           fare: Number(fd.get('fare') || 0),
           payment_method: fd.get('payment_method') || 'cash',
+          promo_code: promoCode.trim(),
+          ride_type: selectedRideType,
+          booking_mode: bookingMode,
+          vehicle_capacity: vehicleCapacity,
+          party_size: bookingMode === 'seat_share' ? partySize : vehicleCapacity,
         },
         tokenKey: TOKEN_KEY,
       })
       event.currentTarget.reset()
+      setPickupPt(null)
+      setDropoffPt(null)
+      setPickupAddressField('')
+      setDropoffAddressField('')
+      setBookingMode('full_car')
+      setVehicleCapacity(5)
+      setPartySize(1)
+      setPromoCode('')
       setMessage('Ride requested successfully!')
       setView('active')
       load()
@@ -230,6 +314,15 @@ export default function RiderAppPage() {
                       <p className="text-lg font-bold text-[#1c2731]">{activeRide.dropoffAddress}</p>
                     </div>
                   </div>
+
+                  {(() => {
+                    const bookingLabel = rideBookingSummary(activeRide)
+                    return bookingLabel ? (
+                      <p className="mb-6 rounded-[1rem] bg-[#e8f4fd] px-4 py-2 text-[13px] font-bold text-[#007AFF] ring-1 ring-[#007AFF]/20">
+                        {bookingLabel}
+                      </p>
+                    ) : null
+                  })()}
                   
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
@@ -304,6 +397,7 @@ export default function RiderAppPage() {
                   {tripCategories.map((tc) => (
                     <button
                       key={tc.key}
+                      type="button"
                       onClick={() => setSelectedTrip(tc.key)}
                       className={`flex flex-col items-center justify-center rounded-[1.5rem] p-5 text-center transition-all ${
                         selectedTrip === tc.key
@@ -317,37 +411,154 @@ export default function RiderAppPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Full car vs seat-share */}
+              <div className="rounded-[2.5rem] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-[#d9e3ec] sm:p-8">
+                <h3 className="mb-2 text-xl font-black tracking-tight text-[#1c2731]">Vehicle & seats</h3>
+                <p className="mb-6 text-[13px] font-medium leading-relaxed text-[#607282]">
+                  Book the whole car, or share seats: the route fare is split evenly across every seat in the car. You pay for the seats your group uses.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setBookingMode('full_car')}
+                    className={`rounded-[1.25rem] p-5 text-left ring-2 transition-all ${
+                      bookingMode === 'full_car'
+                        ? 'bg-[#1c2731] text-white ring-[#1c2731]'
+                        : 'bg-[#f8fafc] text-[#1c2731] ring-[#d9e3ec] hover:bg-white'
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <Car size={22} className={bookingMode === 'full_car' ? 'text-[#34c759]' : 'text-[#007AFF]'} />
+                      <span className="text-[15px] font-black">Full car</span>
+                    </div>
+                    <p className={`text-[12px] font-semibold leading-snug ${bookingMode === 'full_car' ? 'text-blue-100' : 'text-[#607282]'}`}>
+                      Reserve every seat — you pay the full trip fare (ideal for private rides).
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBookingMode('seat_share')}
+                    className={`rounded-[1.25rem] p-5 text-left ring-2 transition-all ${
+                      bookingMode === 'seat_share'
+                        ? 'bg-[#007AFF] text-white ring-[#007AFF]'
+                        : 'bg-[#f8fafc] text-[#1c2731] ring-[#d9e3ec] hover:bg-white'
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <Users size={22} className={bookingMode === 'seat_share' ? 'text-white' : 'text-[#007AFF]'} />
+                      <span className="text-[15px] font-black">Share seats</span>
+                    </div>
+                    <p className={`text-[12px] font-semibold leading-snug ${bookingMode === 'seat_share' ? 'text-blue-100' : 'text-[#607282]'}`}>
+                      Pay only your share: trip total ÷ seats in the car × seats you need.
+                    </p>
+                  </button>
+                </div>
+
+                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="vehicle-cap" className="mb-2 block text-[11px] font-extrabold uppercase tracking-widest text-[#8a9aab]">
+                      Car size (passenger seats)
+                    </label>
+                    <select
+                      id="vehicle-cap"
+                      value={vehicleCapacity}
+                      onChange={(e) => setVehicleCapacity(Number(e.target.value))}
+                      className="w-full rounded-[1.2rem] bg-[#f8fafc] px-4 py-3.5 text-[14px] font-bold text-[#1c2731] shadow-sm ring-1 ring-[#d9e3ec] focus:outline-none focus:ring-2 focus:ring-[#007AFF]"
+                    >
+                      {CAPACITY_OPTIONS.map((n) => (
+                        <option key={n} value={n}>
+                          {n} seats
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {bookingMode === 'seat_share' ? (
+                    <div>
+                      <label htmlFor="party-size" className="mb-2 block text-[11px] font-extrabold uppercase tracking-widest text-[#8a9aab]">
+                        Seats for your group
+                      </label>
+                      <select
+                        id="party-size"
+                        value={partySize}
+                        onChange={(e) => setPartySize(Number(e.target.value))}
+                        className="w-full rounded-[1.2rem] bg-[#f8fafc] px-4 py-3.5 text-[14px] font-bold text-[#1c2731] shadow-sm ring-1 ring-[#d9e3ec] focus:outline-none focus:ring-2 focus:ring-[#007AFF]"
+                      >
+                        {Array.from({ length: vehicleCapacity }, (_, i) => i + 1).map((n) => (
+                          <option key={n} value={n}>
+                            {n} {n === 1 ? 'person' : 'people'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="flex items-end pb-1">
+                      <p className="text-[13px] font-semibold text-[#607282]">Whole vehicle reserved ({vehicleCapacity} seats).</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Form */}
             <div className="rounded-[2.5rem] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-[#d9e3ec] sm:p-8">
               <h3 className="mb-6 text-xl font-black tracking-tight text-[#1c2731]">Route Details</h3>
+
+              {farePreview ? (
+                <div className="mb-5 rounded-[1.25rem] bg-[#e8f4fd]/80 p-4 ring-1 ring-[#007AFF]/15">
+                  <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#007AFF]">Fare preview (before promo & penalties)</p>
+                  <p className="mt-2 text-[13px] font-semibold text-[#607282]">
+                    ~{farePreview.distanceKm.toFixed(1)} km route · Full-car estimate{' '}
+                    <span className="font-mono text-[#1c2731]">৳{Math.round(farePreview.approxFullTrip).toLocaleString()}</span>
+                  </p>
+                  <p className="mt-1 text-[15px] font-black text-[#1c2731]">
+                    You pay ~{' '}
+                    <span className="text-[#007AFF]">৳{Math.round(farePreview.approxYouPay).toLocaleString()}</span>
+                    {bookingMode === 'seat_share' ? (
+                      <span className="ml-2 text-[12px] font-bold text-[#607282]">
+                        ({partySize}/{vehicleCapacity} seats · equal split per seat)
+                      </span>
+                    ) : null}
+                  </p>
+                </div>
+              ) : (
+                <p className="mb-5 text-[13px] font-medium text-[#8a9aab]">Set pickup and dropoff on the map to see a fare preview.</p>
+              )}
+
+              <RideMapPicker pickup={pickupPt} dropoff={dropoffPt} onPickupChange={resolvePickupOnMap} onDropoffChange={resolveDropoffOnMap} className="mb-6" />
+
               <form onSubmit={requestRide} className="space-y-4">
-                
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#34c759]"><MapPin size={18} /></div>
-                  <input name="pickup_address" className="w-full rounded-[1.2rem] bg-[#f8fafc] py-4 pl-12 pr-4 text-[15px] font-bold text-[#1c2731] shadow-sm ring-1 ring-[#d9e3ec] transition-all placeholder:font-medium placeholder:text-[#a0b0c0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]" placeholder="Pickup Address" required />
+                  <input
+                    value={pickupAddressField}
+                    onChange={(e) => setPickupAddressField(e.target.value)}
+                    className="w-full rounded-[1.2rem] bg-[#f8fafc] py-4 pl-12 pr-4 text-[15px] font-bold text-[#1c2731] shadow-sm ring-1 ring-[#d9e3ec] transition-all placeholder:font-medium placeholder:text-[#a0b0c0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]"
+                    placeholder="Pickup address (from map or edit)"
+                    required
+                  />
                 </div>
-                
+                {pickupPt ? (
+                  <p className="-mt-2 text-[12px] font-semibold text-[#607282]">
+                    Pickup coords: <span className="font-mono text-[#1c2731]">{formatCoordsLabel(pickupPt.lat, pickupPt.lng)}</span>
+                  </p>
+                ) : null}
+
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#ff3b30]"><MapIcon size={18} /></div>
-                  <input name="dropoff_address" className="w-full rounded-[1.2rem] bg-[#f8fafc] py-4 pl-12 pr-4 text-[15px] font-bold text-[#1c2731] shadow-sm ring-1 ring-[#d9e3ec] transition-all placeholder:font-medium placeholder:text-[#a0b0c0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]" placeholder="Dropoff Address" required />
+                  <input
+                    value={dropoffAddressField}
+                    onChange={(e) => setDropoffAddressField(e.target.value)}
+                    className="w-full rounded-[1.2rem] bg-[#f8fafc] py-4 pl-12 pr-4 text-[15px] font-bold text-[#1c2731] shadow-sm ring-1 ring-[#d9e3ec] transition-all placeholder:font-medium placeholder:text-[#a0b0c0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]"
+                    placeholder="Dropoff address (from map or edit)"
+                    required
+                  />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-[1.2rem] bg-[#f8fafc] p-1 ring-1 ring-[#d9e3ec]">
-                    <input name="pickup_lat" className="w-full bg-transparent px-3 py-2 text-[13px] font-medium text-[#1c2731] outline-none placeholder:text-[#a0b0c0]" placeholder="Pick Lat" />
-                  </div>
-                  <div className="rounded-[1.2rem] bg-[#f8fafc] p-1 ring-1 ring-[#d9e3ec]">
-                    <input name="pickup_lng" className="w-full bg-transparent px-3 py-2 text-[13px] font-medium text-[#1c2731] outline-none placeholder:text-[#a0b0c0]" placeholder="Pick Lng" />
-                  </div>
-                  <div className="rounded-[1.2rem] bg-[#f8fafc] p-1 ring-1 ring-[#d9e3ec]">
-                    <input name="dropoff_lat" className="w-full bg-transparent px-3 py-2 text-[13px] font-medium text-[#1c2731] outline-none placeholder:text-[#a0b0c0]" placeholder="Drop Lat" />
-                  </div>
-                  <div className="rounded-[1.2rem] bg-[#f8fafc] p-1 ring-1 ring-[#d9e3ec]">
-                    <input name="dropoff_lng" className="w-full bg-transparent px-3 py-2 text-[13px] font-medium text-[#1c2731] outline-none placeholder:text-[#a0b0c0]" placeholder="Drop Lng" />
-                  </div>
-                </div>
+                {dropoffPt ? (
+                  <p className="-mt-2 text-[12px] font-semibold text-[#607282]">
+                    Dropoff coords: <span className="font-mono text-[#1c2731]">{formatCoordsLabel(dropoffPt.lat, dropoffPt.lng)}</span>
+                  </p>
+                ) : null}
 
                 <div className="pt-2">
                   <p className="mb-2 text-[11px] font-extrabold uppercase tracking-widest text-[#8a9aab]">Payment & Fare</p>
@@ -374,7 +585,10 @@ export default function RiderAppPage() {
                   <button type="button" className="rounded-[1.2rem] bg-[#1c2731] px-6 text-[13px] font-bold text-white shadow-md active:scale-95">Apply</button>
                 </div>
 
-                <button className="group mt-8 flex w-full items-center justify-center gap-2 rounded-[1.5rem] bg-gradient-to-r from-[#007AFF] to-[#0062CC] py-5 text-lg font-black text-white shadow-[0_8px_25px_rgba(0,122,255,0.35)] transition-all hover:shadow-[0_15px_35px_rgba(0,122,255,0.45)] active:scale-95">
+                <button
+                  type="submit"
+                  className="group mt-8 flex w-full items-center justify-center gap-2 rounded-[1.5rem] bg-gradient-to-r from-[#007AFF] to-[#0062CC] py-5 text-lg font-black text-white shadow-[0_8px_25px_rgba(0,122,255,0.35)] transition-all hover:shadow-[0_15px_35px_rgba(0,122,255,0.45)] active:scale-95"
+                >
                   Request {rideTypes.find(r => r.key === selectedRideType)?.label} Ride <Navigation size={20} className="transition-transform group-hover:translate-x-1" />
                 </button>
               </form>
@@ -424,6 +638,15 @@ export default function RiderAppPage() {
                     </div>
                   </div>
 
+                  {(() => {
+                    const bookingLabel = rideBookingSummary(activeRide)
+                    return bookingLabel ? (
+                      <p className="mb-6 rounded-[1.25rem] bg-[#e8f4fd]/90 px-4 py-3 text-[13px] font-bold text-[#007AFF] ring-1 ring-[#007AFF]/15">
+                        {bookingLabel}
+                      </p>
+                    ) : null
+                  })()}
+
                   <div className="mb-8 rounded-[1.5rem] bg-[#f8fafc] p-6 ring-1 ring-inset ring-[#d9e3ec]">
                     <p className="text-[12px] font-extrabold uppercase tracking-widest text-[#8a9aab]">Locked Fare</p>
                     <p className="mt-1 text-4xl font-black text-[#1c2731]">৳{Number(activeRide.fare || 0).toLocaleString()}</p>
@@ -465,10 +688,14 @@ export default function RiderAppPage() {
                     <div className="space-y-1.5">
                       <p className="text-[15px] font-black text-[#1c2731]"><span className="text-[#8a9aab] font-medium mr-1">From:</span> {ride.pickupAddress}</p>
                       <p className="text-[15px] font-black text-[#1c2731]"><span className="text-[#8a9aab] font-medium mr-1">To:</span> {ride.dropoffAddress}</p>
+                      {(() => {
+                        const bl = rideBookingSummary(ride)
+                        return bl ? <p className="text-[13px] font-bold text-[#007AFF]">{bl}</p> : null
+                      })()}
                     </div>
                   </div>
                   <div className="flex flex-col items-start sm:items-end">
-                    <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#8a9aab]">Total Fare</p>
+                    <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#8a9aab]">Your fare</p>
                     <p className="mt-1 text-3xl font-black tracking-tighter text-[#1c2731]">৳{Number(ride.fare || 0).toLocaleString()}</p>
                   </div>
                 </div>

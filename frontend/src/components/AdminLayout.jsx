@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { LayoutDashboard, Users, Car, Map, Wallet, Ticket, BarChart3, LogOut, Menu } from 'lucide-react'
+import AdminAssistant from './AdminAssistant'
 
 const navItems = [
   { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -90,6 +91,8 @@ export default function AdminLayout({ title, children }) {
           {children}
         </main>
       </div>
+
+      <AdminAssistant />
     </div>
   )
 }

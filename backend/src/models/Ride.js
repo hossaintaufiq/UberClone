@@ -24,6 +24,15 @@ const rideSchema = new mongoose.Schema(
     cashbackEarned: { type: Number, default: 0 },
     penaltyApplied: { type: Number, default: 0 },
     promoCode: { type: String, default: "" },
+    bookingMode: {
+      type: String,
+      enum: ["full_car", "seat_share"],
+      default: "full_car",
+    },
+    vehicleCapacity: { type: Number, default: 5, min: 2, max: 8 },
+    partySize: { type: Number, default: 1, min: 1, max: 8 },
+    /** Whole-vehicle subtotal after promo, before seat-share split (BDT). */
+    tripTotalAfterPromo: { type: Number, default: 0 },
     status: {
       type: String,
       enum: ["requested", "accepted", "arrived", "started", "ongoing", "completed", "cancelled"],
