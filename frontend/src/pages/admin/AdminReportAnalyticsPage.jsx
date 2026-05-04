@@ -3,6 +3,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, R
 import AdminLayout from '../../components/AdminLayout'
 import { TrendingUp, TrendingDown, Users, ShieldAlert, DollarSign, Activity } from 'lucide-react'
 import { apiRequest } from '../../services/api'
+import { onRealtimeRefresh } from '../../services/realtime'
 
 const dailyData = [
   { date: 'Apr 24', revenue: 128000, cost: 42000, rides: 840 },
@@ -46,7 +47,13 @@ export default function AdminReportAnalyticsPage() {
     const intervalId = window.setInterval(() => {
       load()
     }, 10000)
-    return () => window.clearInterval(intervalId)
+    const offRealtime = onRealtimeRefresh(() => {
+      load()
+    })
+    return () => {
+      window.clearInterval(intervalId)
+      offRealtime()
+    }
   }, [])
 
   const scale = useMemo(() => {

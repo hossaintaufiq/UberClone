@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import AdminLayout from '../../components/AdminLayout'
 import { Users, Car, Map, AlertTriangle, Banknote, Landmark, Ticket, BarChart3, TrendingUp, Navigation, ArrowRight } from 'lucide-react'
 import { apiRequest } from '../../services/api'
+import { onRealtimeRefresh } from '../../services/realtime'
 
 const COLORS = ['#007AFF', '#34c759', '#ff9500', '#ff3b30', '#5856d6', '#af52de']
 
@@ -36,7 +37,13 @@ export default function AdminDashboardPage() {
     const intervalId = window.setInterval(() => {
       load()
     }, 10000)
-    return () => window.clearInterval(intervalId)
+    const offRealtime = onRealtimeRefresh(() => {
+      load()
+    })
+    return () => {
+      window.clearInterval(intervalId)
+      offRealtime()
+    }
   }, [])
 
   const cards = [

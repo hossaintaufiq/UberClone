@@ -10,6 +10,11 @@ const emitRide = (req, rideId, event, payload) => {
   io.to(`ride:${rideId}`).emit(event, payload);
 };
 
+const emitSystemRefresh = (req, payload = {}) => {
+  const io = req.app.get("io");
+  io.emit("system:refresh", { ts: Date.now(), ...payload });
+};
+
 const RIDE_TYPES = new Set(["single", "share", "family", "intercity-reserve", "intercity-day-trip", "intercity-inside-city"]);
 
 function normalizeRideType(value) {
@@ -109,6 +114,7 @@ exports.requestRide = async (req, res) => {
     if (assigned?._id) {
       await Notification.create({ userId: assigned._id, title: "New ride request", message: `New ${ride.rideType} ride request nearby.` });
     }
+    emitSystemRefresh(req, { type: "ride:requested", rideId: String(ride._id) });
     res.status(201).json({ success: true, message: "Ride requested", data: ride });
   } catch (error) {
     console.error("requestRide", error);
@@ -138,6 +144,7 @@ exports.acceptRide = async (req, res) => {
   if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
   emitRide(req, req.params.id, "ride:status", { status: "accepted" });
   await Notification.create({ userId: ride.riderId, title: "Ride accepted", message: "Driver accepted your request." });
+  emitSystemRefresh(req, { type: "ride:accepted", rideId: String(ride._id) });
   res.json({ success: true, message: "Ride accepted", data: ride });
 };
 
@@ -150,6 +157,7 @@ exports.rejectRide = async (req, res) => {
     await driver.save();
   }
   await Notification.create({ userId: ride.riderId, title: "Ride rejected", message: "Driver rejected your request. Reassigning nearby driver." });
+  emitSystemRefresh(req, { type: "ride:rejected", rideId: String(ride._id) });
   res.json({ success: true, message: "Ride rejected. 30 BDT penalty applied." });
 };
 
@@ -157,6 +165,8 @@ exports.driverArrived = async (req, res) => {
   const ride = await Ride.findByIdAndUpdate(req.params.id, { status: "arrived" }, { returnDocument: "after" });
   if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
   emitRide(req, req.params.id, "ride:status", { status: "arrived" });
+  await Notification.create({ userId: ride.riderId, title: "Driver arrived", message: "Your driver has arrived at pickup." });
+  emitSystemRefresh(req, { type: "ride:arrived", rideId: String(ride._id) });
   res.json({ success: true, message: "Driver marked as arrived", data: ride });
 };
 
@@ -164,6 +174,8 @@ exports.startRide = async (req, res) => {
   const ride = await Ride.findByIdAndUpdate(req.params.id, { status: "ongoing" }, { returnDocument: "after" });
   if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
   emitRide(req, req.params.id, "ride:status", { status: "ongoing" });
+  await Notification.create({ userId: ride.riderId, title: "Ride started", message: "Your trip is now in progress." });
+  emitSystemRefresh(req, { type: "ride:ongoing", rideId: String(ride._id) });
   res.json({ success: true, message: "Ride started", data: ride });
 };
 
@@ -189,7 +201,23 @@ exports.completeRide = async (req, res) => {
       await ride.save();
     }
   }
+  // Ensure completion always contributes to admin revenue metrics.
+  const existingPaid = await Payment.findOne({ rideId: ride._id, status: "paid" });
+  if (!existingPaid) {
+    await Payment.create({
+      rideId: ride._id,
+      riderId: ride.riderId,
+      amount: Number(ride.fare || 0),
+      method: "cash",
+      status: "paid",
+    });
+  }
   emitRide(req, req.params.id, "ride:status", { status: "completed" });
+  await Notification.create({ userId: ride.riderId, title: "Ride completed", message: "Trip finished. Please rate your driver." });
+  if (ride.driverId) {
+    await Notification.create({ userId: ride.driverId, title: "Ride completed", message: "Trip completed successfully. Earnings updated." });
+  }
+  emitSystemRefresh(req, { type: "ride:completed", rideId: String(ride._id) });
   res.json({ success: true, message: "Ride completed", data: ride });
 };
 
@@ -203,24 +231,33 @@ exports.cancelRide = async (req, res) => {
   if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
   if (cancelledBy === "user") {
     await User.findByIdAndUpdate(ride.riderId, { $inc: { pendingPenalty: 30 } });
+  } else {
+    await Notification.create({ userId: ride.riderId, title: "Ride cancelled", message: "Driver cancelled this trip." });
   }
   emitRide(req, req.params.id, "ride:status", { status: "cancelled" });
+  emitSystemRefresh(req, { type: "ride:cancelled", rideId: String(ride._id) });
   res.json({ success: true, message: "Ride cancelled", data: ride });
 };
 
 exports.rateDriver = async (req, res) => {
   await Ride.findByIdAndUpdate(req.params.id, { riderRating: Number(req.body.rating || 0) });
+  emitSystemRefresh(req, { type: "ride:riderRating", rideId: String(req.params.id) });
   res.json({ success: true, message: "Driver rated successfully" });
 };
 
 exports.rateRider = async (req, res) => {
   await Ride.findByIdAndUpdate(req.params.id, { driverRating: Number(req.body.rating || 0) });
+  emitSystemRefresh(req, { type: "ride:driverRating", rideId: String(req.params.id) });
   res.json({ success: true, message: "Rider rated successfully" });
 };
 
 exports.processPayment = async (req, res) => {
   const ride = await Ride.findById(req.params.id);
   if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
+  const existingPaid = await Payment.findOne({ rideId: ride._id, status: "paid" });
+  if (existingPaid) {
+    return res.json({ success: true, message: "Payment already processed", data: existingPaid });
+  }
   const payment = await Payment.create({
     rideId: ride._id,
     riderId: ride.riderId,
@@ -228,6 +265,7 @@ exports.processPayment = async (req, res) => {
     method: req.body.method || "card",
     status: "paid",
   });
+  emitSystemRefresh(req, { type: "payment:paid", rideId: String(ride._id) });
   res.json({ success: true, message: "Payment successful", data: payment });
 };
 

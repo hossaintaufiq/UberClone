@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import DriverLayout from '../../components/DriverLayout'
 import { DRIVER_TOKEN_KEY } from '../../constants/auth'
 import { apiRequest } from '../../services/api'
+import { onRealtimeRefresh } from '../../services/realtime'
 import ConfirmToast from '../../components/ConfirmToast'
 import { MapPin, Star, AlertTriangle, Navigation, Clock, User, Check, X } from 'lucide-react'
 
@@ -28,7 +29,13 @@ export default function DriverIncomingRequestPage() {
     const intervalId = window.setInterval(() => {
       loadRequests()
     }, 10000)
-    return () => window.clearInterval(intervalId)
+    const offRealtime = onRealtimeRefresh(() => {
+      loadRequests()
+    })
+    return () => {
+      window.clearInterval(intervalId)
+      offRealtime()
+    }
   }, [navigate])
 
   const acceptRide = async (id) => {

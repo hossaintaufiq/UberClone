@@ -30,4 +30,8 @@ class RiderService {
   static Future<void> cancelRide(String id, {String reason = "Cancelled by rider"}) async {
     await ApiClient.patch("/api/rides/$id/cancel", {"reason": reason}, tokenPref: AuthPrefs.riderToken);
   }
+
+  static Future<void> rateDriver(String rideId, int rating) async {
+    await ApiClient.post("/api/rides/$rideId/rate-driver", {"rating": rating}, tokenPref: AuthPrefs.riderToken);
+  }
 }

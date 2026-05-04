@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import AdminLayout from '../../components/AdminLayout'
 import { apiRequest } from '../../services/api'
+import { onRealtimeRefresh } from '../../services/realtime'
 import { Banknote, TrendingUp, Save, Wallet, Receipt, CreditCard, Activity, Settings2 } from 'lucide-react'
 
 export default function AdminPaymentPage() {
@@ -13,7 +14,13 @@ export default function AdminPaymentPage() {
     const intervalId = window.setInterval(() => {
       loadData()
     }, 10000)
-    return () => window.clearInterval(intervalId)
+    const offRealtime = onRealtimeRefresh(() => {
+      loadData()
+    })
+    return () => {
+      window.clearInterval(intervalId)
+      offRealtime()
+    }
   }, [])
 
   const loadData = async () => {

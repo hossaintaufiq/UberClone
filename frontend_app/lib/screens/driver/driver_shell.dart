@@ -480,7 +480,27 @@ class _DriverHistoryState extends State<_DriverHistory> {
             tileColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             title: Text("${r["pickupAddress"] ?? ""}", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-            subtitle: Text("৳${r["fare"] ?? 0} · ${r["driverEarning"] ?? ""}"),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("৳${r["fare"] ?? 0} · ${r["driverEarning"] ?? ""}"),
+                if (r["riderRating"] != null) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF7ED),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0xFFFED7AA)),
+                    ),
+                    child: Text(
+                      "Rider rated you ${r["riderRating"]}/5",
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFFD97706)),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           );
         },
       ),

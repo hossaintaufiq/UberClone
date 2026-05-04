@@ -266,6 +266,7 @@ class RiderHistoryTab extends StatefulWidget {
 class _RiderHistoryTabState extends State<RiderHistoryTab> {
   List<dynamic> _rides = [];
   Timer? _poll;
+  String _ratingRideId = "";
 
   @override
   void initState() {
@@ -288,6 +289,20 @@ class _RiderHistoryTabState extends State<RiderHistoryTab> {
     } catch (_) {}
   }
 
+  Future<void> _rateDriver(String rideId, int rating) async {
+    try {
+      setState(() => _ratingRideId = rideId);
+      await RiderService.rateDriver(rideId, rating);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Thanks! Driver review submitted.")));
+      await _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$e")));
+    } finally {
+      if (mounted) setState(() => _ratingRideId = "");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final past = _rides.where((r) => !_active(r)).toList();
@@ -304,7 +319,46 @@ class _RiderHistoryTabState extends State<RiderHistoryTab> {
             tileColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: kCardBorder)),
             title: Text("${_pu(r)} → ${_do(r)}", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            subtitle: Text("${_st(r)} · ৳${r["fare"] ?? 0}"),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("${_st(r)} · ৳${r["fare"] ?? 0}"),
+                if (_st(r) == "completed") ...[
+                  const SizedBox(height: 8),
+                  if (r["riderRating"] != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF7ED),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: const Color(0xFFFED7AA)),
+                      ),
+                      child: Text(
+                        "Rated ${r["riderRating"]}/5",
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFFD97706)),
+                      ),
+                    )
+                  else
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: List.generate(5, (idx) {
+                        final n = idx + 1;
+                        final id = "${r["_id"] ?? r["id"]}";
+                        return OutlinedButton.icon(
+                          onPressed: _ratingRideId == id ? null : () => _rateDriver(id, n),
+                          icon: const Icon(Icons.star_rounded, size: 16),
+                          label: Text("$n"),
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          ),
+                        );
+                      }),
+                    ),
+                ],
+              ],
+            ),
           );
         },
       ),

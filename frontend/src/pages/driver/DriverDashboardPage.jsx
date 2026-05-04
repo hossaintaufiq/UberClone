@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import DriverLayout from '../../components/DriverLayout'
 import { DRIVER_TOKEN_KEY } from '../../constants/auth'
 import { apiRequest } from '../../services/api'
+import { onRealtimeRefresh } from '../../services/realtime'
 
 export default function DriverDashboardPage() {
   const navigate = useNavigate()
@@ -18,8 +19,14 @@ export default function DriverDashboardPage() {
     const intervalId = window.setInterval(() => {
       loadData()
     }, 10000)
+    const offRealtime = onRealtimeRefresh(() => {
+      loadData()
+    })
 
-    return () => window.clearInterval(intervalId)
+    return () => {
+      window.clearInterval(intervalId)
+      offRealtime()
+    }
   }, [navigate])
 
   const loadData = async () => {

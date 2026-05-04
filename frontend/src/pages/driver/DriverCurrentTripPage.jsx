@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import DriverLayout from '../../components/DriverLayout'
 import { DRIVER_TOKEN_KEY } from '../../constants/auth'
 import { apiRequest } from '../../services/api'
+import { onRealtimeRefresh } from '../../services/realtime'
 import ConfirmToast from '../../components/ConfirmToast'
 import { Map, AlertTriangle, MessageCircle, CheckCircle, Check, ChevronUp, ChevronDown, MapPin, Navigation, User, Send } from 'lucide-react'
 
@@ -28,7 +29,13 @@ export default function DriverCurrentTripPage() {
     const intervalId = window.setInterval(() => {
       loadActiveTrip()
     }, 10000)
-    return () => window.clearInterval(intervalId)
+    const offRealtime = onRealtimeRefresh(() => {
+      loadActiveTrip()
+    })
+    return () => {
+      window.clearInterval(intervalId)
+      offRealtime()
+    }
   }, [navigate])
 
   const loadActiveTrip = async () => {

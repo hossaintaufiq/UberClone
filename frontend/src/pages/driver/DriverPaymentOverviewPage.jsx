@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import DriverLayout from '../../components/DriverLayout'
 import { DRIVER_TOKEN_KEY } from '../../constants/auth'
 import { apiRequest } from '../../services/api'
+import { onRealtimeRefresh } from '../../services/realtime'
 import { Car, Banknote, Building2, AlertTriangle, Star, CheckCircle2, Lightbulb, Wallet, ArrowRight } from 'lucide-react'
 
 export default function DriverPaymentOverviewPage() {
@@ -16,8 +17,14 @@ export default function DriverPaymentOverviewPage() {
     const intervalId = window.setInterval(() => {
       loadEarnings()
     }, 10000)
+    const offRealtime = onRealtimeRefresh(() => {
+      loadEarnings()
+    })
 
-    return () => window.clearInterval(intervalId)
+    return () => {
+      window.clearInterval(intervalId)
+      offRealtime()
+    }
   }, [navigate])
 
   const loadEarnings = async () => {

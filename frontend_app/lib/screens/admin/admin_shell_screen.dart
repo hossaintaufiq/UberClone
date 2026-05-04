@@ -37,12 +37,15 @@ class _AdminShellScreenState extends State<AdminShellScreen> {
         (id: "1", label: "Riders"),
         (id: "2", label: "Drivers"),
         (id: "3", label: "Rides"),
+        (id: "4", label: "Finance"),
+        (id: "5", label: "Promos"),
+        (id: "6", label: "Analytics"),
       ],
       helpText:
-          "**Overview** — counts & revenue.\n**Riders / Drivers** — toggle active status.\n**Rides** — recent trips.\n\nTry **open riders**.",
+          "**Overview** — counts & revenue.\n**Riders / Drivers** — toggle active status.\n**Rides** — recent trips.\n**Finance** — commission & config.\n**Promos** — create/toggle promo codes.\n**Analytics** — live business snapshot.\n\nTry **open finance**.",
       onJump: (id) {
         final i = int.tryParse(id);
-        if (i != null && i >= 0 && i <= 3) setState(() => _ix = i);
+        if (i != null && i >= 0 && i <= 6) setState(() => _ix = i);
       },
     );
   }
@@ -54,6 +57,9 @@ class _AdminShellScreenState extends State<AdminShellScreen> {
       const _AdminRidersList(),
       const _AdminDriversList(),
       const _AdminRidesList(),
+      const _AdminFinance(),
+      const _AdminPromos(),
+      const _AdminAnalytics(),
     ];
 
     return Scaffold(
@@ -73,6 +79,9 @@ class _AdminShellScreenState extends State<AdminShellScreen> {
           NavigationDestination(icon: Icon(Icons.people_outline_rounded), selectedIcon: Icon(Icons.people_rounded), label: "Riders"),
           NavigationDestination(icon: Icon(Icons.local_taxi_outlined), selectedIcon: Icon(Icons.local_taxi_rounded), label: "Drivers"),
           NavigationDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map_rounded), label: "Rides"),
+          NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet_rounded), label: "Finance"),
+          NavigationDestination(icon: Icon(Icons.local_offer_outlined), selectedIcon: Icon(Icons.local_offer_rounded), label: "Promos"),
+          NavigationDestination(icon: Icon(Icons.insights_outlined), selectedIcon: Icon(Icons.insights_rounded), label: "Analytics"),
         ],
       ),
     );
@@ -373,6 +382,331 @@ class _AdminRidesListState extends State<_AdminRidesList> {
             subtitle: Text("${r["status"]} · ৳${r["fare"] ?? 0}"),
           );
         },
+      ),
+    );
+  }
+}
+
+class _AdminFinance extends StatefulWidget {
+  const _AdminFinance();
+
+  @override
+  State<_AdminFinance> createState() => _AdminFinanceState();
+}
+
+class _AdminFinanceState extends State<_AdminFinance> {
+  Map<String, dynamic> _rev = {};
+  final TextEditingController _perKm = TextEditingController(text: "40");
+  final TextEditingController _commission = TextEditingController(text: "5");
+  bool _busy = false;
+  Timer? _poll;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    _perKm.dispose();
+    _commission.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final rev = await AdminService.revenue();
+      final cfg = await AdminService.config();
+      if (!mounted) return;
+      setState(() {
+        _rev = rev;
+        _perKm.text = "${(cfg["perKmFare"] ?? 40)}";
+        _commission.text = "${((num.tryParse("${cfg["commissionRate"] ?? 0.05}") ?? 0.05) * 100).toStringAsFixed(0)}";
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _save() async {
+    final perKm = num.tryParse(_perKm.text.trim());
+    final c = num.tryParse(_commission.text.trim());
+    if (perKm == null || c == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Enter valid config values.")));
+      return;
+    }
+    try {
+      setState(() => _busy = true);
+      await AdminService.updateConfig(perKmFare: perKm, commissionRate: c / 100);
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pricing config updated.")));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$e")));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final gross = num.tryParse("${_rev["total_revenue"] ?? 0}") ?? 0;
+    final payments = _rev["total_payments"] ?? 0;
+    final cPct = num.tryParse(_commission.text) ?? 5;
+    final commission = (gross * cPct / 100).round();
+    final net = gross - commission;
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text("Financial Operations", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
+          const SizedBox(height: 12),
+          _metricTile("Gross Revenue", "৳${gross.toStringAsFixed(0)}", Icons.payments_rounded, kPrimary),
+          _metricTile("Commission", "৳$commission", Icons.account_balance_rounded, const Color(0xFF0EA5E9)),
+          _metricTile("Driver Payouts", "৳${net.toStringAsFixed(0)}", Icons.wallet_rounded, kDriverGreen),
+          const SizedBox(height: 8),
+          Text("Processed payments: $payments", style: const TextStyle(color: kMuted, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 16),
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Pricing Config", style: TextStyle(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _perKm,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: "Per KM Fare", border: OutlineInputBorder()),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _commission,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: "Commission %", border: OutlineInputBorder()),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _busy ? null : _save,
+                      child: Text(_busy ? "Saving..." : "Save Configuration"),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _metricTile(String title, String value, IconData icon, Color color) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ListTile(
+        leading: CircleAvatar(backgroundColor: color.withOpacity(0.12), child: Icon(icon, color: color)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+      ),
+    );
+  }
+}
+
+class _AdminPromos extends StatefulWidget {
+  const _AdminPromos();
+
+  @override
+  State<_AdminPromos> createState() => _AdminPromosState();
+}
+
+class _AdminPromosState extends State<_AdminPromos> {
+  List<dynamic> _promos = [];
+  final TextEditingController _code = TextEditingController();
+  final TextEditingController _discount = TextEditingController();
+  bool _busy = false;
+  Timer? _poll;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    _code.dispose();
+    _discount.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final cfg = await AdminService.config();
+      if (!mounted) return;
+      setState(() => _promos = (cfg["promoCodes"] is List) ? List<dynamic>.from(cfg["promoCodes"]) : []);
+    } catch (_) {}
+  }
+
+  Future<void> _create() async {
+    final code = _code.text.trim().toUpperCase();
+    final discount = num.tryParse(_discount.text.trim());
+    if (code.isEmpty || discount == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Enter code and discount.")));
+      return;
+    }
+    try {
+      setState(() => _busy = true);
+      await AdminService.createPromoCode(code: code, discountPercent: discount);
+      _code.clear();
+      _discount.clear();
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Promo created.")));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$e")));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _toggle(String code) async {
+    try {
+      await AdminService.togglePromoCode(code);
+      await _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$e")));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text("Promo Codes", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
+          const SizedBox(height: 10),
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                children: [
+                  TextField(controller: _code, decoration: const InputDecoration(labelText: "Promo code", border: OutlineInputBorder())),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _discount,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: "Discount %", border: OutlineInputBorder()),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(width: double.infinity, child: FilledButton(onPressed: _busy ? null : _create, child: Text(_busy ? "Creating..." : "Create Promo"))),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ..._promos.map((p) {
+            final code = "${p["code"] ?? ""}";
+            final active = p["active"] == true;
+            return Card(
+              child: SwitchListTile(
+                title: Text(code, style: const TextStyle(fontWeight: FontWeight.w800)),
+                subtitle: Text("${p["discountPercent"] ?? 0}% · ${active ? "active" : "inactive"}"),
+                value: active,
+                onChanged: (_) => _toggle(code),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminAnalytics extends StatefulWidget {
+  const _AdminAnalytics();
+
+  @override
+  State<_AdminAnalytics> createState() => _AdminAnalyticsState();
+}
+
+class _AdminAnalyticsState extends State<_AdminAnalytics> {
+  Map<String, dynamic> _dash = {};
+  Map<String, dynamic> _rev = {};
+  Timer? _poll;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final d = await AdminService.dashboard();
+      final r = await AdminService.revenue();
+      if (!mounted) return;
+      setState(() {
+        _dash = d;
+        _rev = r;
+      });
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rides = num.tryParse("${_dash["rides"] ?? 0}") ?? 0;
+    final complaints = num.tryParse("${_dash["complaints"] ?? 0}") ?? 0;
+    final cancellationRate = rides <= 0 ? 0 : (complaints / rides) * 100;
+    final avgDailyRevenue = (num.tryParse("${_rev["monthly"] ?? 0}") ?? 0) / 30;
+    final avgDailyRides = rides / 30;
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text("Analytics", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
+          const SizedBox(height: 10),
+          _kpi("Avg Daily Revenue", "৳${avgDailyRevenue.toStringAsFixed(0)}", Icons.trending_up_rounded, kPrimary),
+          _kpi("Avg Daily Rides", avgDailyRides.toStringAsFixed(1), Icons.local_taxi_rounded, kDriverGreen),
+          _kpi("Cancellation Rate", "${cancellationRate.toStringAsFixed(2)}%", Icons.warning_amber_rounded, const Color(0xFFF59E0B)),
+          _kpi("Monthly Revenue", "৳${_rev["monthly"] ?? 0}", Icons.bar_chart_rounded, const Color(0xFF6366F1)),
+        ],
+      ),
+    );
+  }
+
+  Widget _kpi(String label, String value, IconData icon, Color color) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ListTile(
+        leading: CircleAvatar(backgroundColor: color.withOpacity(0.12), child: Icon(icon, color: color)),
+        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
       ),
     );
   }

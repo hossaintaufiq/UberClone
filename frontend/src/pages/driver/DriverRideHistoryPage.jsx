@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import DriverLayout from '../../components/DriverLayout'
 import { DRIVER_TOKEN_KEY } from '../../constants/auth'
 import { apiRequest } from '../../services/api'
+import { onRealtimeRefresh } from '../../services/realtime'
 import { ClipboardList, Car, Star, MapPin, Map as MapIcon, ArrowRight, Navigation, CheckCircle2 } from 'lucide-react'
 
 export default function DriverRideHistoryPage() {
@@ -16,8 +17,14 @@ export default function DriverRideHistoryPage() {
     const intervalId = window.setInterval(() => {
       loadRides()
     }, 10000)
+    const offRealtime = onRealtimeRefresh(() => {
+      loadRides()
+    })
 
-    return () => window.clearInterval(intervalId)
+    return () => {
+      window.clearInterval(intervalId)
+      offRealtime()
+    }
   }, [navigate])
 
   const loadRides = async () => {

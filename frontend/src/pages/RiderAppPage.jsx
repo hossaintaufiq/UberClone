@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { RideMapPicker } from '../components/Maps'
 import { TOKEN_KEY } from '../constants/auth'
 import { apiRequest } from '../services/api'
+import { onRealtimeRefresh } from '../services/realtime'
 import { formatCoordsLabel, reverseGeocode } from '../services/geocoding'
 import { previewRidePricing } from '../utils/ridePricingPreview'
 import ConfirmToast from '../components/ConfirmToast'
-import { User, Users, UsersRound, Building2, Route, Sun, Home, Car, MapPin, ClipboardList, Banknote, Bell, UserCircle, MessageCircle, Map as MapIcon, Compass, Navigation, ArrowRight } from 'lucide-react'
+import { User, Users, UsersRound, Building2, Route, Sun, Home, Car, MapPin, ClipboardList, Banknote, Bell, UserCircle, MessageCircle, Map as MapIcon, Compass, Navigation, ArrowRight, Star } from 'lucide-react'
 
 const rideTypes = [
   { key: 'single', label: 'Single', icon: <User size={28} />, desc: 'Solo ride' },
@@ -47,6 +48,7 @@ export default function RiderAppPage() {
   const [vehicleCapacity, setVehicleCapacity] = useState(5)
   const [partySize, setPartySize] = useState(1)
   const [confirmToast, setConfirmToast] = useState('')
+  const [ratingBusyRideId, setRatingBusyRideId] = useState('')
   const geocodeAbort = useRef({ pickup: null, dropoff: null })
 
   const farePreview = useMemo(() => {
@@ -99,9 +101,13 @@ export default function RiderAppPage() {
     const intervalId = window.setInterval(() => {
       load()
     }, 10000)
+    const offRealtime = onRealtimeRefresh(() => {
+      load()
+    })
 
     return () => {
       window.clearInterval(intervalId)
+      offRealtime()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -203,6 +209,24 @@ export default function RiderAppPage() {
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY)
     navigate('/rider/login')
+  }
+
+  const rateDriver = async (rideId, rating) => {
+    if (!rideId) return
+    try {
+      setRatingBusyRideId(String(rideId))
+      await apiRequest(`/api/rides/${rideId}/rate-driver`, {
+        method: 'POST',
+        body: { rating },
+        tokenKey: TOKEN_KEY,
+      })
+      setConfirmToast('Thanks! Your driver review was submitted.')
+      await load()
+    } catch (error) {
+      setMessage(error.message)
+    } finally {
+      setRatingBusyRideId('')
+    }
   }
 
   const views = [
@@ -706,6 +730,29 @@ export default function RiderAppPage() {
                         const bl = rideBookingSummary(ride)
                         return bl ? <p className="text-[13px] font-bold text-[#007AFF]">{bl}</p> : null
                       })()}
+                      {String(ride.status || '').toLowerCase() === 'completed' ? (
+                        <div className="pt-2">
+                          <p className="mb-2 text-[11px] font-extrabold uppercase tracking-widest text-[#8a9aab]">Review driver</p>
+                          {ride.riderRating ? (
+                            <p className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-[12px] font-bold text-amber-600 ring-1 ring-amber-200">
+                              <Star size={13} fill="currentColor" /> Rated {Number(ride.riderRating).toFixed(0)}/5
+                            </p>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <button
+                                  key={n}
+                                  onClick={() => rateDriver(ride._id || ride.id, n)}
+                                  disabled={ratingBusyRideId === String(ride._id || ride.id)}
+                                  className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-[12px] font-bold text-[#1c2731] ring-1 ring-[#d9e3ec] transition-all hover:bg-[#f8fafc]"
+                                >
+                                  <Star size={13} /> {n}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex flex-col items-start sm:items-end">

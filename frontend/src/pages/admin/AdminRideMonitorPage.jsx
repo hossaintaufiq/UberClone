@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import AdminLayout from '../../components/AdminLayout'
 import { apiRequest } from '../../services/api'
+import { onRealtimeRefresh } from '../../services/realtime'
 import { Activity, MapPin, Navigation, Compass, Calendar, CheckCircle2, Clock, AlertTriangle } from 'lucide-react'
 
 export default function AdminRideMonitorPage() {
@@ -9,6 +10,16 @@ export default function AdminRideMonitorPage() {
 
   useEffect(() => {
     loadRides()
+    const intervalId = window.setInterval(() => {
+      loadRides()
+    }, 10000)
+    const offRealtime = onRealtimeRefresh(() => {
+      loadRides()
+    })
+    return () => {
+      window.clearInterval(intervalId)
+      offRealtime()
+    }
   }, [])
 
   const loadRides = async () => {
