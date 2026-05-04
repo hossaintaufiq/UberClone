@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:shared_preferences/shared_preferences.dart";
 
@@ -99,11 +101,19 @@ class _DriverDashState extends State<_DriverDash> {
   Map<String, dynamic> _earn = {};
   bool _online = false;
   bool _loading = true;
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -218,11 +228,19 @@ class _DriverIncoming extends StatefulWidget {
 
 class _DriverIncomingState extends State<_DriverIncoming> {
   List<dynamic> _req = [];
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -312,11 +330,20 @@ class _DriverTrip extends StatefulWidget {
 
 class _DriverTripState extends State<_DriverTrip> {
   List<dynamic> _rides = [];
+  Timer? _poll;
+  bool _busy = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -325,6 +352,32 @@ class _DriverTripState extends State<_DriverTrip> {
       if (!mounted) return;
       setState(() => _rides = rides);
     } catch (_) {}
+  }
+
+  Future<void> _advanceTrip(Map<String, dynamic> ride) async {
+    final id = "${ride["_id"] ?? ride["id"]}";
+    if (id.isEmpty || _busy) return;
+    final status = "${ride["status"] ?? ""}".toLowerCase();
+    try {
+      setState(() => _busy = true);
+      if (status == "accepted") {
+        await DriverService.markArrived(id);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Marked as arrived.")));
+      } else if (status == "arrived") {
+        await DriverService.startRide(id);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ride started.")));
+      } else if (status == "started" || status == "ongoing") {
+        await DriverService.completeRide(id);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ride completed.")));
+      }
+      await _load();
+      if (!mounted) return;
+      widget.onGoTab(0);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$e")));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -357,6 +410,19 @@ class _DriverTripState extends State<_DriverTrip> {
                         const SizedBox(height: 8),
                         Text("${r["pickupAddress"] ?? ""} → ${r["dropoffAddress"] ?? ""}", style: const TextStyle(fontWeight: FontWeight.w700)),
                         Text("Fare ৳${r["fare"] ?? 0}", style: const TextStyle(color: kMuted)),
+                        const SizedBox(height: 10),
+                        if (["accepted", "arrived", "started", "ongoing"].contains("${r["status"] ?? ""}".toLowerCase()))
+                          FilledButton(
+                            onPressed: _busy ? null : () => _advanceTrip((r as Map).cast<String, dynamic>()),
+                            style: FilledButton.styleFrom(backgroundColor: kDriverGreen),
+                            child: Text(
+                              _busy
+                                  ? "Updating..."
+                                  : ("${r["status"]}".toLowerCase() == "accepted"
+                                      ? "Mark Arrived"
+                                      : ("${r["status"]}".toLowerCase() == "arrived" ? "Start Ride" : "Complete Ride")),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -376,11 +442,19 @@ class _DriverHistory extends StatefulWidget {
 
 class _DriverHistoryState extends State<_DriverHistory> {
   List<dynamic> _rides = [];
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -426,11 +500,19 @@ class _DriverMore extends StatefulWidget {
 class _DriverMoreState extends State<_DriverMore> {
   Map<String, dynamic> _profile = {};
   List<dynamic> _notes = [];
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {

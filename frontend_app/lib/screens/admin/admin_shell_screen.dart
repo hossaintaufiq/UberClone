@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:shared_preferences/shared_preferences.dart";
 
@@ -87,11 +89,19 @@ class _AdminOverview extends StatefulWidget {
 class _AdminOverviewState extends State<_AdminOverview> {
   Map<String, dynamic> _dash = {};
   Map<String, dynamic> _rev = {};
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -192,11 +202,19 @@ class _AdminRidersList extends StatefulWidget {
 
 class _AdminRidersListState extends State<_AdminRidersList> {
   List<dynamic> _list = [];
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -249,11 +267,19 @@ class _AdminDriversList extends StatefulWidget {
 
 class _AdminDriversListState extends State<_AdminDriversList> {
   List<dynamic> _list = [];
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -306,11 +332,19 @@ class _AdminRidesList extends StatefulWidget {
 
 class _AdminRidesListState extends State<_AdminRidesList> {
   List<dynamic> _list = [];
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {

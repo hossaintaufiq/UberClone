@@ -42,4 +42,13 @@ class DriverService {
 
   static Future<void> rejectRide(String id) =>
       ApiClient.patch("/api/rides/$id/reject", {}, tokenPref: AuthPrefs.driverToken);
+
+  static Future<void> markArrived(String id) =>
+      ApiClient.patch("/api/rides/$id/arrived", {}, tokenPref: AuthPrefs.driverToken);
+
+  static Future<void> startRide(String id) =>
+      ApiClient.patch("/api/rides/$id/start", {}, tokenPref: AuthPrefs.driverToken);
+
+  static Future<void> completeRide(String id) =>
+      ApiClient.patch("/api/rides/$id/complete", {}, tokenPref: AuthPrefs.driverToken);
 }

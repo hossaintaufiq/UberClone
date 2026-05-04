@@ -14,6 +14,12 @@ export default function DriverDashboardPage() {
   useEffect(() => {
     if (!localStorage.getItem(DRIVER_TOKEN_KEY)) { navigate('/driver/login'); return }
     loadData()
+
+    const intervalId = window.setInterval(() => {
+      loadData()
+    }, 10000)
+
+    return () => window.clearInterval(intervalId)
   }, [navigate])
 
   const loadData = async () => {
@@ -81,7 +87,7 @@ export default function DriverDashboardPage() {
           <p className="mt-1 text-[13px] font-medium text-[#607282]">Target: ৳{dailyTarget.minEarnings.toLocaleString()}</p>
         </div>
         <div className="group relative overflow-hidden rounded-3xl border border-white/60 bg-white/60 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-md transition-all hover:-translate-y-1 hover:bg-white/90">
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#8a9aab]">Uber Cut (5%)</p>
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#8a9aab]">Transitely Cut (5%)</p>
           <p className="mt-2 text-3xl font-black text-[#ff9500]">৳{Math.round((earnings.total_earnings || 0) * 0.05).toLocaleString()}</p>
           <p className="mt-1 text-[13px] font-medium text-[#607282]">Daily platform fee</p>
         </div>

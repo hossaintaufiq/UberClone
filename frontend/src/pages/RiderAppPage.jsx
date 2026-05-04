@@ -5,6 +5,7 @@ import { TOKEN_KEY } from '../constants/auth'
 import { apiRequest } from '../services/api'
 import { formatCoordsLabel, reverseGeocode } from '../services/geocoding'
 import { previewRidePricing } from '../utils/ridePricingPreview'
+import ConfirmToast from '../components/ConfirmToast'
 import { User, Users, UsersRound, Building2, Route, Sun, Home, Car, MapPin, ClipboardList, Banknote, Bell, UserCircle, MessageCircle, Map as MapIcon, Compass, Navigation, ArrowRight } from 'lucide-react'
 
 const rideTypes = [
@@ -45,6 +46,7 @@ export default function RiderAppPage() {
   const [bookingMode, setBookingMode] = useState('full_car')
   const [vehicleCapacity, setVehicleCapacity] = useState(5)
   const [partySize, setPartySize] = useState(1)
+  const [confirmToast, setConfirmToast] = useState('')
   const geocodeAbort = useRef({ pickup: null, dropoff: null })
 
   const farePreview = useMemo(() => {
@@ -92,10 +94,19 @@ export default function RiderAppPage() {
   useEffect(() => {
     if (!localStorage.getItem(TOKEN_KEY)) { navigate('/rider/login'); return }
     load()
+
+    // Keep rider dashboard in sync when driver updates ride status.
+    const intervalId = window.setInterval(() => {
+      load()
+    }, 10000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeRide = useMemo(
-    () => state.rides.find((ride) => ['requested', 'accepted', 'arrived', 'started'].includes(String(ride.status || '').toLowerCase())),
+    () => state.rides.find((ride) => ['requested', 'accepted', 'arrived', 'started', 'ongoing'].includes(String(ride.status || '').toLowerCase())),
     [state.rides]
   )
 
@@ -127,6 +138,7 @@ export default function RiderAppPage() {
 
   const requestRide = async (event) => {
     event.preventDefault()
+    const formEl = event.currentTarget
     if (!pickupPt || !dropoffPt) {
       setMessage('Choose pickup and dropoff on the map (OpenStreetMap).')
       return
@@ -154,7 +166,7 @@ export default function RiderAppPage() {
         },
         tokenKey: TOKEN_KEY,
       })
-      event.currentTarget.reset()
+      formEl?.reset()
       setPickupPt(null)
       setDropoffPt(null)
       setPickupAddressField('')
@@ -163,6 +175,7 @@ export default function RiderAppPage() {
       setVehicleCapacity(5)
       setPartySize(1)
       setPromoCode('')
+      setConfirmToast('Ride booking confirmed successfully.')
       setMessage('Ride requested successfully!')
       setView('active')
       load()
@@ -213,6 +226,7 @@ export default function RiderAppPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#edf3f9] selection:bg-[#007AFF]/20 selection:text-[#007AFF]">
+      <ConfirmToast open={Boolean(confirmToast)} message={confirmToast} onClose={() => setConfirmToast('')} />
       
       {/* Floating Glass Header */}
       <header className="sticky top-0 z-40 bg-white/70 shadow-[0_4px_30px_rgba(0,0,0,0.03)] backdrop-blur-xl">

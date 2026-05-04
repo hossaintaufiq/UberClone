@@ -1,20 +1,16 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import DriverLayout from '../../components/DriverLayout'
 import { DRIVER_TOKEN_KEY } from '../../constants/auth'
+import { apiRequest } from '../../services/api'
+import ConfirmToast from '../../components/ConfirmToast'
 import { Map, AlertTriangle, MessageCircle, CheckCircle, Check, ChevronUp, ChevronDown, MapPin, Navigation, User, Send } from 'lucide-react'
 
 export default function DriverCurrentTripPage() {
   const navigate = useNavigate()
-  const [trip, setTrip] = useState({
-    riderName: 'Aminul Haque',
-    riderPhone: '01712345678',
-    pickup: 'Mirpur 10 Circle',
-    dropoff: 'Dhanmondi 27',
-    fare: 120,
-    status: 'accepted',
-    distance: '5.2 km',
-  })
+  const location = useLocation()
+  const selectedRideId = location.state?.rideId
+  const [trip, setTrip] = useState(null)
   const [chatOpen, setChatOpen] = useState(false)
   const [messages, setMessages] = useState([
     { from: 'rider', text: 'I am waiting near the bus stop', time: '2:30 PM' },
@@ -22,12 +18,69 @@ export default function DriverCurrentTripPage() {
   ])
   const [newMsg, setNewMsg] = useState('')
   const [accidentOpen, setAccidentOpen] = useState(false)
+  const [confirmToast, setConfirmToast] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
     if (!localStorage.getItem(DRIVER_TOKEN_KEY)) navigate('/driver/login')
+    loadActiveTrip()
+    const intervalId = window.setInterval(() => {
+      loadActiveTrip()
+    }, 10000)
+    return () => window.clearInterval(intervalId)
   }, [navigate])
 
-  const updateStatus = (newStatus) => setTrip({ ...trip, status: newStatus })
+  const loadActiveTrip = async () => {
+    try {
+      const res = await apiRequest('/api/drivers/rides', { tokenKey: DRIVER_TOKEN_KEY })
+      const rides = res.data || []
+      const activeStatuses = ['accepted', 'arrived', 'started', 'ongoing']
+      const bySelected = selectedRideId ? rides.find((r) => String(r._id) === String(selectedRideId)) : null
+      const active = bySelected && activeStatuses.includes(String(bySelected.status || '').toLowerCase())
+        ? bySelected
+        : rides.find((r) => activeStatuses.includes(String(r.status || '').toLowerCase()))
+      if (!active) {
+        setTrip(null)
+        return
+      }
+      setTrip(active)
+    } catch {
+      setErrorMessage('Unable to load active ride now.')
+      setTrip(null)
+    }
+  }
+
+  const updateStatus = async () => {
+    if (!trip?._id || busy) return
+    const status = String(trip.status || '').toLowerCase()
+    let endpoint = ''
+    let actionLabel = ''
+    if (status === 'accepted') {
+      endpoint = 'arrived'
+      actionLabel = 'arrived at pickup'
+    } else if (status === 'arrived') {
+      endpoint = 'start'
+      actionLabel = 'started the ride'
+    } else if (status === 'started' || status === 'ongoing') {
+      endpoint = 'complete'
+      actionLabel = 'completed the ride'
+    } else {
+      return
+    }
+    try {
+      setBusy(true)
+      setErrorMessage('')
+      await apiRequest(`/api/rides/${trip._id}/${endpoint}`, { method: 'PATCH', tokenKey: DRIVER_TOKEN_KEY })
+      setConfirmToast(`Ride status confirmed: You have ${actionLabel}.`)
+      await loadActiveTrip()
+      if (endpoint === 'complete') navigate('/driver/dashboard')
+    } catch (error) {
+      setErrorMessage(error.message || 'Could not update ride status.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const sendMessage = () => {
     if (!newMsg.trim()) return
@@ -35,14 +88,28 @@ export default function DriverCurrentTripPage() {
     setNewMsg('')
   }
 
-  const statusFlow = ['accepted', 'arrived', 'started', 'completed']
-  const currentIdx = statusFlow.indexOf(trip.status)
-  const nextStatus = statusFlow[currentIdx + 1]
-  const statusLabels = { accepted: 'Navigate to Pickup', arrived: 'Start Ride', started: 'Complete Ride', completed: 'Ride Completed' }
+  const statusLabels = { accepted: 'Navigate to Pickup', arrived: 'Start Ride', started: 'Complete Ride', ongoing: 'Complete Ride', completed: 'Ride Completed' }
+  const currentStatus = String(trip?.status || '').toLowerCase()
+  const nextStatus = ['accepted', 'arrived', 'started', 'ongoing'].includes(currentStatus)
 
   return (
     <DriverLayout title="Active Trip Tracker">
-      {trip.status === 'completed' ? (
+      <ConfirmToast open={Boolean(confirmToast)} message={confirmToast} onClose={() => setConfirmToast('')} />
+      {errorMessage ? (
+        <div className="mb-5 rounded-2xl bg-red-50 px-4 py-3 text-[13px] font-bold text-[#ff3b30] ring-1 ring-red-200">
+          {errorMessage}
+        </div>
+      ) : null}
+      {!trip ? (
+        <div className="mx-auto flex max-w-lg flex-col items-center justify-center rounded-[3rem] bg-white py-24 text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-[#d9e3ec]">
+          <div className="grid h-24 w-24 place-items-center rounded-[1.5rem] bg-[#f8fafc] text-[#8a9aab] ring-1 ring-[#d9e3ec]">
+            <Navigation size={40} />
+          </div>
+          <h3 className="mt-6 text-2xl font-black tracking-tight text-[#1c2731]">No Active Trip</h3>
+          <p className="mt-2 text-[15px] font-medium text-[#607282]">Accept a ride from incoming requests to start tracking.</p>
+          <button onClick={() => navigate('/driver/incoming')} className="mt-8 rounded-[1.5rem] bg-[#007AFF] px-8 py-4 text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(0,122,255,0.3)] transition-all hover:shadow-[0_12px_25px_rgba(0,122,255,0.4)] active:scale-95">Open Incoming Rides</button>
+        </div>
+      ) : trip.status === 'completed' ? (
         <div className="relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-green-50 to-emerald-100 p-12 text-center shadow-[0_20px_60px_rgba(52,199,89,0.15)] ring-1 ring-green-200">
           <div className="absolute -left-24 -top-24 h-64 w-64 rounded-full bg-green-400/20 blur-[80px]"></div>
           <div className="absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-emerald-400/20 blur-[80px]"></div>
@@ -51,11 +118,11 @@ export default function DriverCurrentTripPage() {
               <CheckCircle size={64} className="text-white" strokeWidth={2.5} />
             </div>
             <h2 className="text-5xl font-black tracking-tight text-[#1c2731]">Ride Completed!</h2>
-            <p className="mt-4 text-xl font-medium text-[#607282]">You successfully dropped off {trip.riderName}.</p>
+            <p className="mt-4 text-xl font-medium text-[#607282]">You successfully dropped off your rider.</p>
             
             <div className="my-10 w-full max-w-sm rounded-[2rem] bg-white/60 p-8 shadow-inner ring-1 ring-inset ring-green-100 backdrop-blur-xl">
               <p className="text-[13px] font-extrabold uppercase tracking-[0.2em] text-[#8a9aab]">Total Fare Earned</p>
-              <p className="mt-2 text-6xl font-black tracking-tighter text-[#34c759]">৳{trip.fare}</p>
+              <p className="mt-2 text-6xl font-black tracking-tighter text-[#34c759]">৳{Number(trip.fare || 0)}</p>
             </div>
 
             <button onClick={() => navigate('/driver/dashboard')} className="group flex items-center gap-2 rounded-full bg-[#1c2731] px-10 py-5 text-[15px] font-bold text-white shadow-[0_8px_30px_rgba(28,39,49,0.3)] transition-all hover:-translate-y-1 hover:shadow-[0_15px_40px_rgba(28,39,49,0.4)] active:scale-95">
@@ -114,11 +181,11 @@ export default function DriverCurrentTripPage() {
                   <div className="flex flex-col justify-between py-1">
                     <div className="mb-7">
                       <p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-[#8a9aab]">Pickup Location</p>
-                      <p className="mt-1 text-xl font-black text-[#1c2731]">{trip.pickup}</p>
+                      <p className="mt-1 text-xl font-black text-[#1c2731]">{trip.pickupAddress || 'Pickup'}</p>
                     </div>
                     <div>
                       <p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-[#8a9aab]">Dropoff Destination</p>
-                      <p className="mt-1 text-xl font-black text-[#1c2731]">{trip.dropoff}</p>
+                      <p className="mt-1 text-xl font-black text-[#1c2731]">{trip.dropoffAddress || 'Dropoff'}</p>
                     </div>
                   </div>
                 </div>
@@ -133,12 +200,13 @@ export default function DriverCurrentTripPage() {
             {/* Primary Action Button (Massive and Sticky) */}
             {nextStatus && (
               <button
-                onClick={() => updateStatus(nextStatus)}
+                onClick={updateStatus}
+                disabled={busy}
                 className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[2rem] bg-gradient-to-r from-[#007AFF] to-[#0062CC] py-6 shadow-[0_12px_35px_rgba(0,122,255,0.35)] transition-all hover:shadow-[0_20px_50px_rgba(0,122,255,0.45)] active:scale-[0.98]"
               >
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,transparent,rgba(255,255,255,0.2),transparent)] opacity-0 transition-opacity duration-500 group-hover:opacity-100 group-hover:animate-shimmer"></div>
                 <Navigation className="h-6 w-6 text-white transition-transform group-hover:translate-x-1" />
-                <span className="text-xl font-black text-white">{statusLabels[trip.status] || 'Next Step'}</span>
+                <span className="text-xl font-black text-white">{busy ? 'Updating...' : (statusLabels[currentStatus] || 'Next Step')}</span>
               </button>
             )}
 
@@ -147,7 +215,7 @@ export default function DriverCurrentTripPage() {
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <div className="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-tr from-[#1c2731] to-[#3a4f63] text-2xl font-black text-white shadow-lg">
-                    {trip.riderName[0]}
+                    {(trip?.riderName || 'R')[0]}
                   </div>
                   <div className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full bg-[#34c759] ring-2 ring-white">
                     <User size={12} className="text-white" />
@@ -155,19 +223,19 @@ export default function DriverCurrentTripPage() {
                 </div>
                 <div>
                   <p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-[#8a9aab]">Passenger</p>
-                  <p className="text-xl font-black text-[#1c2731]">{trip.riderName}</p>
-                  <p className="text-[13px] font-bold text-[#007AFF]">{trip.riderPhone}</p>
+                  <p className="text-xl font-black text-[#1c2731]">Active Rider</p>
+                  <p className="text-[13px] font-bold text-[#007AFF]">{trip.riderId ? String(trip.riderId).slice(-6) : '—'}</p>
                 </div>
               </div>
               
               <div className="mt-6 flex gap-3">
                 <div className="flex-1 rounded-2xl bg-white/50 p-4 text-center ring-1 ring-[#d9e3ec] backdrop-blur-sm">
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#8a9aab]">Distance</p>
-                  <p className="mt-1 text-xl font-black text-[#1c2731]">{trip.distance}</p>
+                  <p className="mt-1 text-xl font-black text-[#1c2731]">{Number(trip.distanceKm || 0).toFixed(1)} km</p>
                 </div>
                 <div className="flex-1 rounded-2xl bg-white/50 p-4 text-center ring-1 ring-[#d9e3ec] backdrop-blur-sm">
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#8a9aab]">Est. Fare</p>
-                  <p className="mt-1 text-xl font-black text-[#34c759]">৳{trip.fare}</p>
+                  <p className="mt-1 text-xl font-black text-[#34c759]">৳{Number(trip.fare || 0)}</p>
                 </div>
               </div>
             </div>

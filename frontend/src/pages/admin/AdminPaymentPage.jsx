@@ -10,16 +10,30 @@ export default function AdminPaymentPage() {
 
   useEffect(() => {
     loadData()
+    const intervalId = window.setInterval(() => {
+      loadData()
+    }, 10000)
+    return () => window.clearInterval(intervalId)
   }, [])
 
   const loadData = async () => {
     try {
-      const rev = await apiRequest('/api/admin/revenue')
+      const [rev, config] = await Promise.all([
+        apiRequest('/api/admin/revenue'),
+        apiRequest('/api/admin/config'),
+      ])
       setRevenue(rev.data || {})
+      if (config.data) {
+        setFareConfig((prev) => ({
+          ...prev,
+          perKmRate: Number(config.data.perKmFare || prev.perKmRate),
+          commissionPercent: Math.round(Number(config.data.commissionRate || 0.05) * 100),
+        }))
+      }
     } catch { /* defaults */ }
   }
 
-  const commission = Math.round((revenue.total_revenue || 0) * 0.05)
+  const commission = Math.round((revenue.total_revenue || 0) * ((fareConfig.commissionPercent || 5) / 100))
   const payouts = (revenue.total_revenue || 0) - commission
 
   return (
@@ -157,8 +171,20 @@ export default function AdminPaymentPage() {
 
           <div className="mt-8 flex justify-end">
             <button
-              onClick={() => {
-                setMessage('Fare engine configuration deployed successfully.')
+              onClick={async () => {
+                try {
+                  await apiRequest('/api/admin/config', {
+                    method: 'PATCH',
+                    body: {
+                      per_km_fare: Number(fareConfig.perKmRate || 0),
+                      commission_rate: Number(fareConfig.commissionPercent || 0) / 100,
+                    },
+                  })
+                  await loadData()
+                  setMessage('Fare engine configuration deployed successfully.')
+                } catch (error) {
+                  setMessage(error.message || 'Could not deploy configuration.')
+                }
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
               className="flex items-center gap-2 rounded-full bg-[#1c2731] px-8 py-4 text-[15px] font-black text-white shadow-[0_8px_20px_rgba(28,39,49,0.2)] transition-all hover:bg-[#2a3a4a] hover:shadow-lg hover:-translate-y-0.5 active:scale-95"

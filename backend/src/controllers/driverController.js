@@ -14,7 +14,7 @@ exports.updateProfile = async (req, res) => {
     phone: req.body.phone,
   };
   if (req.file) payload.profilePhoto = `/uploads/profiles/${req.file.filename}`;
-  const user = await User.findByIdAndUpdate(req.user.id, payload, { new: true }).select("-passwordHash -otp");
+  const user = await User.findByIdAndUpdate(req.user.id, payload, { returnDocument: "after" }).select("-passwordHash -otp");
   res.json({ success: true, message: "Profile updated", data: user });
 };
 
@@ -39,8 +39,13 @@ exports.getRides = async (req, res) => {
   res.json({ success: true, data: rides });
 };
 
-exports.getRideRequests = async (_, res) => {
-  const rides = await Ride.find({ status: "requested", $or: [{ driverId: { $exists: false } }, { driverId: null }] }).sort({ createdAt: -1 }).limit(20);
+exports.getRideRequests = async (req, res) => {
+  const rides = await Ride.find({
+    status: "requested",
+    $or: [{ driverId: req.user.id }, { driverId: { $exists: false } }, { driverId: null }],
+  })
+    .sort({ createdAt: -1 })
+    .limit(20);
   res.json({ success: true, data: rides });
 };
 

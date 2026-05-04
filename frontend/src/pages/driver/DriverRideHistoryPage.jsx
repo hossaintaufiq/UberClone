@@ -12,6 +12,12 @@ export default function DriverRideHistoryPage() {
   useEffect(() => {
     if (!localStorage.getItem(DRIVER_TOKEN_KEY)) { navigate('/driver/login'); return }
     loadRides()
+
+    const intervalId = window.setInterval(() => {
+      loadRides()
+    }, 10000)
+
+    return () => window.clearInterval(intervalId)
   }, [navigate])
 
   const loadRides = async () => {

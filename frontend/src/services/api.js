@@ -3,8 +3,10 @@ import { API_BASE } from '../constants/auth'
 export async function apiRequest(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) }
   const tokenKey = options.tokenKey || 'rider_token'
-  const token = localStorage.getItem(tokenKey)
-  if (token) headers.Authorization = `Bearer ${token}`
+  if (!options.skipAuth) {
+    const token = localStorage.getItem(tokenKey)
+    if (token) headers.Authorization = `Bearer ${token}`
+  }
 
   // Remove content-type for FormData
   if (options.body instanceof FormData) {

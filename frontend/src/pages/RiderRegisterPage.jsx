@@ -18,6 +18,7 @@ export default function RiderRegisterPage() {
       await apiRequest('/api/auth/rider/register', {
         method: 'POST',
         body: { full_name: form.name, name: form.name, email: form.email, phone: form.phone, password: form.password },
+        skipAuth: true,
       })
       navigate(`/rider/login?identifier=${encodeURIComponent(form.email)}`)
     } catch (error) {

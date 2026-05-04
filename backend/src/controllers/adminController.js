@@ -50,7 +50,7 @@ exports.updateComplaint = async (req, res) => {
   const complaint = await Complaint.findByIdAndUpdate(
     req.params.id,
     { status: req.body.status || "in_review", adminNote: req.body.admin_note || "" },
-    { new: true }
+    { returnDocument: "after" }
   );
   res.json({ success: true, message: "Complaint updated", data: complaint });
 };

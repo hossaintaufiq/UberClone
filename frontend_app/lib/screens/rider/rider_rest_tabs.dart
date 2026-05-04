@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "../../core/app_theme.dart";
 import "../../services/rider_service.dart";
@@ -8,7 +10,7 @@ String _st(dynamic r) => "${r["status"] ?? ""}".toLowerCase();
 
 bool _active(dynamic r) {
   final s = _st(r);
-  return ["requested", "accepted", "arrived", "started"].contains(s);
+  return ["requested", "accepted", "arrived", "started", "ongoing"].contains(s);
 }
 
 class RiderHomeTab extends StatefulWidget {
@@ -24,11 +26,19 @@ class _RiderHomeTabState extends State<RiderHomeTab> {
   Map<String, dynamic> _profile = {};
   List<dynamic> _rides = [];
   bool _loading = true;
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -162,11 +172,19 @@ class RiderActiveTab extends StatefulWidget {
 class _RiderActiveTabState extends State<RiderActiveTab> {
   List<dynamic> _rides = [];
   bool _loading = true;
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -247,11 +265,19 @@ class RiderHistoryTab extends StatefulWidget {
 
 class _RiderHistoryTabState extends State<RiderHistoryTab> {
   List<dynamic> _rides = [];
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -299,11 +325,19 @@ class _RiderMoreTabState extends State<RiderMoreTab> {
   Map<String, dynamic> _profile = {};
   List<dynamic> _payments = [];
   List<dynamic> _notes = [];
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {

@@ -15,7 +15,7 @@ exports.updateProfile = async (req, res) => {
     phone: req.body.phone,
   };
   if (req.file) payload.profilePhoto = `/uploads/profiles/${req.file.filename}`;
-  const user = await User.findByIdAndUpdate(req.user.id, payload, { new: true }).select("-passwordHash -otp");
+  const user = await User.findByIdAndUpdate(req.user.id, payload, { returnDocument: "after" }).select("-passwordHash -otp");
   res.json({ success: true, message: "Profile updated", data: user });
 };
 

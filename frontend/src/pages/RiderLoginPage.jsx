@@ -21,11 +21,16 @@ export default function RiderLoginPage() {
       const data = await apiRequest('/api/auth/rider/login', {
         method: 'POST',
         body: { identifier, password },
+        skipAuth: true,
       })
       localStorage.setItem(TOKEN_KEY, data.token)
       navigate('/rider/app')
     } catch (error) {
-      setMessage(error.message)
+      if (error.status === 401) {
+        setMessage('Invalid email/phone or password. Please try again.')
+      } else {
+        setMessage(error.message)
+      }
     } finally {
       setBusy(false)
     }

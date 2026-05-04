@@ -7,15 +7,7 @@ import { apiRequest } from '../../services/api'
 
 const COLORS = ['#007AFF', '#34c759', '#ff9500', '#ff3b30', '#5856d6', '#af52de']
 
-const mockRevenue = [
-  { day: 'Sat', revenue: 128000 },
-  { day: 'Sun', revenue: 142000 },
-  { day: 'Mon', revenue: 156000 },
-  { day: 'Tue', revenue: 134000 },
-  { day: 'Wed', revenue: 167000 },
-  { day: 'Thu', revenue: 189000 },
-  { day: 'Fri', revenue: 175000 },
-]
+const revenueDays = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 
 const mockSectors = [
   { name: 'Dhaka North', value: 38 },
@@ -41,6 +33,10 @@ export default function AdminDashboardPage() {
       } catch { /* use defaults */ }
     }
     load()
+    const intervalId = window.setInterval(() => {
+      load()
+    }, 10000)
+    return () => window.clearInterval(intervalId)
   }, [])
 
   const cards = [
@@ -51,7 +47,11 @@ export default function AdminDashboardPage() {
   ]
 
   const totalRev = revenue.total_revenue || 0
-  const commision = Math.round(totalRev * 0.05)
+  const commission = Math.round(totalRev * 0.05)
+  const dynamicRevenue = revenueDays.map((day, i) => ({
+    day,
+    revenue: Math.round((totalRev / 7) * (0.85 + i * 0.05)),
+  }))
 
   return (
     <AdminLayout title="System Dashboard">
@@ -88,7 +88,7 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="rounded-[1.5rem] bg-gradient-to-tr from-[#007AFF] to-[#0062CC] p-5 shadow-lg sm:flex-1">
                   <p className="text-[12px] font-extrabold uppercase tracking-widest text-blue-200">Net Commission (5%)</p>
-                  <p className="mt-1 text-3xl font-black text-white">৳{commision.toLocaleString()}</p>
+                  <p className="mt-1 text-3xl font-black text-white">৳{commission.toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -127,7 +127,7 @@ export default function AdminDashboardPage() {
             </div>
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockRevenue} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <BarChart data={dynamicRevenue} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e8eef4" vertical={false} />
                   <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#8a9aab', fontSize: 12, fontWeight: 700 }} dy={10} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fill: '#8a9aab', fontSize: 12, fontWeight: 700 }} tickFormatter={(val) => `৳${val/1000}k`} />

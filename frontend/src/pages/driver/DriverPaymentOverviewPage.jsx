@@ -12,6 +12,12 @@ export default function DriverPaymentOverviewPage() {
   useEffect(() => {
     if (!localStorage.getItem(DRIVER_TOKEN_KEY)) { navigate('/driver/login'); return }
     loadEarnings()
+
+    const intervalId = window.setInterval(() => {
+      loadEarnings()
+    }, 10000)
+
+    return () => window.clearInterval(intervalId)
   }, [navigate])
 
   const loadEarnings = async () => {
@@ -22,8 +28,8 @@ export default function DriverPaymentOverviewPage() {
   }
 
   const gross = earnings.total_earnings || 0
-  const uberCut = Math.round(gross * 0.05)
-  const net = gross - uberCut
+  const transitelyCut = Math.round(gross * 0.05)
+  const net = gross - transitelyCut
 
   return (
     <DriverLayout title="Financial Overview">
@@ -53,7 +59,7 @@ export default function DriverPaymentOverviewPage() {
                 <Building2 size={24} className="text-white" />
               </div>
               <p className="text-[12px] font-extrabold uppercase tracking-[0.15em] text-orange-100">Platform Fee (5%)</p>
-              <p className="mt-2 text-4xl font-black tracking-tighter sm:text-5xl">৳{uberCut.toLocaleString()}</p>
+              <p className="mt-2 text-4xl font-black tracking-tighter sm:text-5xl">৳{transitelyCut.toLocaleString()}</p>
               <div className="mt-4 flex items-center gap-2 rounded-full bg-black/10 px-3 py-1.5 w-fit">
                 <AlertTriangle size={14} className="text-orange-100" />
                 <p className="text-[12px] font-bold text-orange-100">Daily platform commission</p>
@@ -93,7 +99,7 @@ export default function DriverPaymentOverviewPage() {
             {[
               { label: 'Total Rides Completed', value: earnings.completed_rides || 0, icon: <Car size={20} className="text-[#007AFF]" />, bg: 'bg-blue-50' },
               { label: 'Gross Ride Earnings', value: `৳${gross.toLocaleString()}`, icon: <Banknote size={20} className="text-[#34c759]" />, bg: 'bg-green-50' },
-              { label: 'Uber Commission (5%)', value: `−৳${uberCut.toLocaleString()}`, icon: <Building2 size={20} className="text-[#ff3b30]" />, color: 'text-[#ff3b30]', bg: 'bg-red-50' },
+              { label: 'Transitely Commission (5%)', value: `−৳${transitelyCut.toLocaleString()}`, icon: <Building2 size={20} className="text-[#ff3b30]" />, color: 'text-[#ff3b30]', bg: 'bg-red-50' },
               { label: 'Ride Rejection Penalties', value: '−৳0', icon: <AlertTriangle size={20} className="text-[#ff9500]" />, color: 'text-[#ff9500]', bg: 'bg-orange-50' },
               { label: 'Loyalty Bonus (After 1 Year)', value: '+৳0', icon: <Star size={20} className="text-[#8a9aab]" />, color: 'text-[#8a9aab]', bg: 'bg-slate-50' },
             ].map((row, idx) => (
