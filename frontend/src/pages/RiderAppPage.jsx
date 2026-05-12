@@ -9,8 +9,9 @@ import { formatCoordsLabel, reverseGeocode } from '../services/geocoding'
 import { previewRidePricing } from '../utils/ridePricingPreview'
 import { riderFacingRideUI, DRIVER_MATCHING_EXPLAINER, paymentMethodLabel, rideNeedsPayment } from '../utils/rideStatus'
 import ConfirmToast from '../components/ConfirmToast'
+import RiderInlineRideChat from '../components/RiderInlineRideChat'
 import RiderTripSummaryModal from '../components/RiderTripSummaryModal'
-import { User, Users, UsersRound, Building2, Route, Sun, Home, Car, MapPin, ClipboardList, Banknote, Bell, UserCircle, MessageCircle, Map as MapIcon, Compass, Navigation, ArrowRight, FileText, LocateFixed } from 'lucide-react'
+import { User, Users, UsersRound, Building2, Route, Sun, Home, Car, MapPin, ClipboardList, Banknote, Bell, UserCircle, Map as MapIcon, Compass, Navigation, ArrowRight, FileText, LocateFixed } from 'lucide-react'
 
 const rideTypes = [
   { key: 'single', label: 'Single', icon: <User size={28} />, desc: 'Solo ride' },
@@ -609,8 +610,15 @@ export default function RiderAppPage() {
                     </div>
                     <div className="flex gap-3">
                       <button onClick={cancelRide} className="rounded-2xl bg-[#fff5f5] px-6 py-3.5 text-[14px] font-bold text-[#ff3b30] shadow-sm ring-1 ring-[#ffd4d4] transition-all hover:bg-[#ff3b30] hover:text-white active:scale-95">Cancel (৳30 penalty)</button>
-                      <Link to={`/rider/chat/${activeRide._id}`} className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#007AFF] to-[#0062CC] px-8 py-3.5 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(0,122,255,0.3)] transition-all hover:shadow-[0_12px_25px_rgba(0,122,255,0.4)] active:scale-95"><MessageCircle size={18} /> Driver Chat</Link>
                     </div>
+                  </div>
+                  <div className="mt-6">
+                    <RiderInlineRideChat
+                      key={String(activeRide._id || activeRide.id)}
+                      rideId={activeRide._id || activeRide.id}
+                      compact
+                      onError={(msg) => setMessage(msg)}
+                    />
                   </div>
                 </div>
               </div>
@@ -1100,9 +1108,17 @@ export default function RiderAppPage() {
                     <p className="mt-1 text-4xl font-black text-[#1c2731]">৳{Number(activeRide.fare || 0).toLocaleString()}</p>
                   </div>
 
+                  <div className="mb-8">
+                    <RiderInlineRideChat
+                      key={String(activeRide._id || activeRide.id)}
+                      rideId={activeRide._id || activeRide.id}
+                      defaultExpanded
+                      onError={(msg) => setMessage(msg)}
+                    />
+                  </div>
+
                   <div className="flex flex-col gap-3 sm:flex-row">
-                    <Link to={`/rider/chat/${activeRide._id}`} className="flex flex-1 items-center justify-center gap-2 rounded-[1.5rem] bg-gradient-to-r from-[#007AFF] to-[#0062CC] py-4 text-[15px] font-black text-white shadow-[0_8px_20px_rgba(0,122,255,0.3)] transition-all hover:shadow-[0_12px_25px_rgba(0,122,255,0.4)] active:scale-95"><MessageCircle size={18} /> Open Driver Chat</Link>
-                    <button onClick={cancelRide} className="rounded-[1.5rem] bg-white px-8 py-4 text-[15px] font-bold text-[#ff3b30] shadow-sm ring-1 ring-[#ffd4d4] transition-all hover:bg-[#fff5f5] active:scale-95">Cancel Ride</button>
+                    <button onClick={cancelRide} className="flex flex-1 items-center justify-center rounded-[1.5rem] bg-white px-8 py-4 text-[15px] font-bold text-[#ff3b30] shadow-sm ring-1 ring-[#ffd4d4] transition-all hover:bg-[#fff5f5] active:scale-95">Cancel Ride</button>
                   </div>
                 </div>
               </div>

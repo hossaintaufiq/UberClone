@@ -53,3 +53,18 @@ export function onDriverLocation(rideId, callback) {
   }
 }
 
+/** Subscribe to new ride chat messages (server emits after POST /api/rides/:id/chat). */
+export function onRideChatMessage(rideId, callback) {
+  if (!rideId) return () => {}
+  const s = getSocket()
+  const wanted = String(rideId)
+  const handler = (payload = {}) => {
+    if (!payload?.message || String(payload.rideId || '') !== wanted) return
+    callback?.(payload.message)
+  }
+  s.on('ride:chat:message', handler)
+  return () => {
+    s.off('ride:chat:message', handler)
+  }
+}
+

@@ -9,6 +9,7 @@ import "../../core/auth_prefs.dart";
 import "../../services/driver_service.dart";
 import "../../widgets/nav_assistant_sheet.dart";
 import "../../widgets/live_trip_map_card.dart";
+import "../../widgets/ride_chat_panel.dart";
 import "../home_portal_screen.dart";
 import "driver_feedback_screen.dart";
 
@@ -429,6 +430,12 @@ class _DriverTripState extends State<_DriverTrip> {
                         const SizedBox(height: 8),
                         Text("${r["pickupAddress"] ?? ""} → ${r["dropoffAddress"] ?? ""}", style: const TextStyle(fontWeight: FontWeight.w700)),
                         Text("Fare ৳${r["fare"] ?? 0}", style: const TextStyle(color: kMuted)),
+                        const SizedBox(height: 12),
+                        RideChatPanel(
+                          rideId: "${r["_id"] ?? r["id"]}",
+                          tokenPref: AuthPrefs.driverToken,
+                          isDriver: true,
+                        ),
                         const SizedBox(height: 10),
                         if (["accepted", "arrived", "started", "ongoing"].contains("${r["status"] ?? ""}".toLowerCase()))
                           FilledButton(

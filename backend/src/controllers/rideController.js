@@ -415,28 +415,66 @@ exports.trackRide = async (req, res) => {
   res.json({ success: true, data: ride });
 };
 
+function canAccessRideChat(ride, userId) {
+  const uid = String(userId || "");
+  if (!ride || !uid) return false;
+  if (String(ride.riderId) === uid) return true;
+  if (ride.driverId && String(ride.driverId) === uid) return true;
+  return false;
+}
+
 exports.getRideChat = async (req, res) => {
-  const ride = await Ride.findById(req.params.id).select("chatMessages");
-  if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
-  res.json({ success: true, data: ride.chatMessages || [] });
+  try {
+    const ride = await Ride.findById(req.params.id).select("chatMessages riderId driverId");
+    if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
+    if (!canAccessRideChat(ride, req.user.id)) {
+      return res.status(403).json({ success: false, message: "You cannot access chat for this ride." });
+    }
+    res.json({ success: true, data: ride.chatMessages || [] });
+  } catch (e) {
+    console.error("getRideChat", e);
+    res.status(500).json({ success: false, message: e.message || "Could not load chat." });
+  }
 };
 
 exports.sendRideChat = async (req, res) => {
-  const msg = String(req.body.message || "").trim();
-  if (!msg) return res.status(400).json({ success: false, message: "Message is required." });
-  const ride = await Ride.findByIdAndUpdate(
-    req.params.id,
-    {
-      $push: {
-        chatMessages: {
-          senderRole: req.user.role === "driver" ? "driver" : "user",
-          senderId: req.user.id,
-          message: msg,
+  try {
+    const msg = String(req.body.message || "").trim();
+    if (!msg) return res.status(400).json({ success: false, message: "Message is required." });
+    const existing = await Ride.findById(req.params.id).select("riderId driverId");
+    if (!existing) return res.status(404).json({ success: false, message: "Ride not found." });
+    if (!canAccessRideChat(existing, req.user.id)) {
+      return res.status(403).json({ success: false, message: "You cannot send messages on this ride." });
+    }
+    const ride = await Ride.findByIdAndUpdate(
+      req.params.id,
+      {
+        $push: {
+          chatMessages: {
+            senderRole: req.user.role === "driver" ? "driver" : "user",
+            senderId: req.user.id,
+            message: msg,
+          },
         },
       },
-    },
-    { returnDocument: "after" }
-  ).select("chatMessages");
-  if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
-  res.json({ success: true, data: ride.chatMessages || [] });
+      { returnDocument: "after" }
+    ).select("chatMessages");
+    if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
+    const list = ride.chatMessages || [];
+    const last = list[list.length - 1];
+    if (last) {
+      const payload = {
+        _id: last._id,
+        senderRole: last.senderRole,
+        senderId: last.senderId,
+        message: last.message,
+        createdAt: last.createdAt,
+      };
+      emitRide(req, req.params.id, "ride:chat:message", { rideId: String(req.params.id), message: payload });
+    }
+    res.json({ success: true, data: list });
+  } catch (e) {
+    console.error("sendRideChat", e);
+    res.status(500).json({ success: false, message: e.message || "Could not send message." });
+  }
 };

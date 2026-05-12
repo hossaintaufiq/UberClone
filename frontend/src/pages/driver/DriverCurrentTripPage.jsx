@@ -1,12 +1,27 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import DriverLayout from '../../components/DriverLayout'
 import { DRIVER_TOKEN_KEY } from '../../constants/auth'
 import { apiRequest } from '../../services/api'
-import { emitDriverLocation, joinRideRoom, onRealtimeRefresh } from '../../services/realtime'
+import { emitDriverLocation, joinRideRoom, onRealtimeRefresh, onRideChatMessage } from '../../services/realtime'
 import ConfirmToast from '../../components/ConfirmToast'
 import { LiveRideMap } from '../../components/Maps'
 import { AlertTriangle, MessageCircle, CheckCircle, ChevronUp, ChevronDown, MapPin, Navigation, User, Send } from 'lucide-react'
+
+function formatChatTime(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+function mapDriverChatRow(m) {
+  return {
+    id: String(m._id),
+    from: m.senderRole === 'driver' ? 'driver' : 'rider',
+    text: m.message,
+    time: formatChatTime(m.createdAt),
+  }
+}
 
 export default function DriverCurrentTripPage() {
   const navigate = useNavigate()
@@ -14,11 +29,10 @@ export default function DriverCurrentTripPage() {
   const selectedRideId = location.state?.rideId
   const [trip, setTrip] = useState(null)
   const [chatOpen, setChatOpen] = useState(false)
-  const [messages, setMessages] = useState([
-    { from: 'rider', text: 'I am waiting near the bus stop', time: '2:30 PM' },
-    { from: 'driver', text: 'On my way, 3 minutes', time: '2:31 PM' },
-  ])
+  const [messages, setMessages] = useState([])
   const [newMsg, setNewMsg] = useState('')
+  const [chatSending, setChatSending] = useState(false)
+  const chatEndRef = useRef(null)
   const [accidentOpen, setAccidentOpen] = useState(false)
   const [confirmToast, setConfirmToast] = useState('')
   const [busy, setBusy] = useState(false)
@@ -46,6 +60,41 @@ export default function DriverCurrentTripPage() {
     if (!rideId) return
     joinRideRoom(rideId)
   }, [trip?._id])
+
+  const mergeIncomingChat = useCallback((doc) => {
+    const row = mapDriverChatRow(doc)
+    setMessages((prev) => {
+      if (prev.some((p) => p.id === row.id)) return prev
+      return [...prev, row]
+    })
+  }, [])
+
+  useEffect(() => {
+    const id = String(trip?._id || '')
+    if (!id) {
+      setMessages([])
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const chatRes = await apiRequest(`/api/rides/${id}/chat`, { tokenKey: DRIVER_TOKEN_KEY })
+        if (cancelled) return
+        setMessages((chatRes.data || []).map(mapDriverChatRow))
+      } catch {
+        if (!cancelled) setMessages([])
+      }
+    })()
+    const offChat = onRideChatMessage(id, mergeIncomingChat)
+    return () => {
+      cancelled = true
+      offChat()
+    }
+  }, [trip?._id, mergeIncomingChat])
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, chatOpen])
 
   useEffect(() => {
     const rideId = String(trip?._id || '')
@@ -135,10 +184,24 @@ export default function DriverCurrentTripPage() {
     }
   }
 
-  const sendMessage = () => {
-    if (!newMsg.trim()) return
-    setMessages([...messages, { from: 'driver', text: newMsg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }])
-    setNewMsg('')
+  const sendMessage = async () => {
+    const text = newMsg.trim()
+    if (!text || !trip?._id || chatSending) return
+    try {
+      setChatSending(true)
+      setErrorMessage('')
+      const res = await apiRequest(`/api/rides/${trip._id}/chat`, {
+        method: 'POST',
+        tokenKey: DRIVER_TOKEN_KEY,
+        body: { message: text },
+      })
+      setMessages((res.data || []).map(mapDriverChatRow))
+      setNewMsg('')
+    } catch (error) {
+      setErrorMessage(error.message || 'Could not send message.')
+    } finally {
+      setChatSending(false)
+    }
   }
 
   const statusLabels = { accepted: 'Navigate to Pickup', arrived: 'Start Ride', started: 'Complete Ride', ongoing: 'Complete Ride', completed: 'Ride Completed' }
@@ -315,25 +378,35 @@ export default function DriverCurrentTripPage() {
               {chatOpen && (
                 <div className="flex flex-1 flex-col overflow-hidden border-t border-white/40">
                   <div className="flex-1 space-y-4 overflow-y-auto p-6 scrollbar-hide">
-                    {messages.map((m, i) => (
-                      <div key={i} className={`flex ${m.from === 'driver' ? 'justify-end' : 'justify-start'}`}>
+                    {messages.length === 0 ? (
+                      <p className="text-center text-[13px] font-medium text-[#8a9aab]">No messages yet. Say hello to your rider.</p>
+                    ) : null}
+                    {messages.map((m) => (
+                      <div key={m.id} className={`flex ${m.from === 'driver' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`relative max-w-[85%] rounded-[1.5rem] px-5 py-3 ${m.from === 'driver' ? 'rounded-tr-sm bg-gradient-to-r from-[#007AFF] to-[#0062CC] text-white shadow-md' : 'rounded-tl-sm bg-[#f0f5fa] text-[#1c2731]'}`}>
                           <p className="text-[15px] font-medium leading-snug">{m.text}</p>
                           <p className={`mt-1 text-[10px] font-bold uppercase tracking-wider ${m.from === 'driver' ? 'text-blue-200' : 'text-[#8a9aab]'}`}>{m.time}</p>
                         </div>
                       </div>
                     ))}
+                    <div ref={chatEndRef} />
                   </div>
                   <div className="bg-white/50 p-4 backdrop-blur-xl">
                     <div className="flex items-center gap-2 rounded-full bg-white p-2 shadow-sm ring-1 ring-[#d9e3ec] focus-within:ring-2 focus-within:ring-[#007AFF]">
                       <input
                         value={newMsg}
                         onChange={(e) => setNewMsg(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault()
+                            sendMessage()
+                          }
+                        }}
                         className="flex-1 bg-transparent px-4 py-2 text-[15px] font-medium text-[#1c2731] placeholder-[#a0b0c0] outline-none"
                         placeholder="Type a message..."
+                        disabled={chatSending}
                       />
-                      <button onClick={sendMessage} className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full bg-[#007AFF] text-white shadow-md transition-transform hover:scale-105 active:scale-95 disabled:opacity-50" disabled={!newMsg.trim()}>
+                      <button type="button" onClick={sendMessage} className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full bg-[#007AFF] text-white shadow-md transition-transform hover:scale-105 active:scale-95 disabled:opacity-50" disabled={!newMsg.trim() || chatSending}>
                         <Send size={18} className="ml-1" />
                       </button>
                     </div>

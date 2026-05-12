@@ -3,11 +3,13 @@ import "dart:async";
 import "package:flutter/material.dart";
 import "package:latlong2/latlong.dart";
 import "../../core/app_theme.dart";
+import "../../core/auth_prefs.dart";
 import "../../services/rider_service.dart";
 import "../../utils/ride_status.dart";
 
 import "rider_trip_summary_sheet.dart";
 import "../../widgets/live_trip_map_card.dart";
+import "../../widgets/ride_chat_panel.dart";
 
 String _pu(dynamic r) => "${r["pickupAddress"] ?? r["pickup_address"] ?? ""}";
 String _do(dynamic r) => "${r["dropoffAddress"] ?? r["dropoff_address"] ?? ""}";
@@ -333,6 +335,12 @@ class _RiderHomeTabState extends State<RiderHomeTab> {
                         OutlinedButton(onPressed: () => widget.onGoTab(1), child: const Text("Book another")),
                       ],
                     ),
+                    const SizedBox(height: 16),
+                    RideChatPanel(
+                      rideId: "${active["_id"] ?? active["id"]}",
+                      tokenPref: AuthPrefs.riderToken,
+                      isDriver: false,
+                    ),
                   ],
                 ),
               ),
@@ -538,6 +546,12 @@ class _RiderActiveTabState extends State<RiderActiveTab> {
                         const SizedBox(height: 10),
                         Text(kDriverMatchingExplainer, style: TextStyle(color: kMuted.withValues(alpha: 0.95), fontSize: 12, height: 1.35)),
                       ],
+                      const SizedBox(height: 14),
+                      RideChatPanel(
+                        rideId: id,
+                        tokenPref: AuthPrefs.riderToken,
+                        isDriver: false,
+                      ),
                       const SizedBox(height: 10),
                       OutlinedButton(
                         onPressed: () => _cancel(id),
