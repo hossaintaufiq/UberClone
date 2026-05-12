@@ -1,7 +1,5 @@
 import { API_BASE } from '../constants/auth'
 
-const NOMINATIM_REVERSE = 'https://nominatim.openstreetmap.org/reverse'
-
 export function formatCoordsLabel(lat, lng) {
   return `${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`
 }
@@ -24,18 +22,15 @@ export async function searchPlaces(query, signal) {
   return Array.isArray(json.data) ? json.data : []
 }
 
-/** Free OSM Nominatim reverse lookup (respect low volume / fair use). */
+/** Reverse lookup via backend proxy for stable browser support. */
 export async function reverseGeocode(lat, lng, signal) {
-  const params = new URLSearchParams({
-    lat: String(lat),
-    lon: String(lng),
-    format: 'json',
-  })
-  const res = await fetch(`${NOMINATIM_REVERSE}?${params}`, {
+  const params = new URLSearchParams({ lat: String(lat), lng: String(lng) })
+  const res = await fetch(`${API_BASE}/api/geocode/reverse?${params}`, {
     signal,
     headers: { Accept: 'application/json' },
   })
   if (!res.ok) throw new Error('Geocode failed')
   const data = await res.json()
-  return typeof data.display_name === 'string' ? data.display_name : ''
+  if (data?.success === false) throw new Error(data?.message || 'Geocode failed')
+  return typeof data?.data?.label === 'string' ? data.data.label : ''
 }

@@ -63,7 +63,7 @@ class _DriverFeedbackScreenState extends State<DriverFeedbackScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
-            ? const ListView(children: [SizedBox(height: 120), Center(child: CircularProgressIndicator())])
+            ? ListView(children: const [SizedBox(height: 120), Center(child: CircularProgressIndicator())])
             : _items.isEmpty
                 ? ListView(
                     physics: const AlwaysScrollableScrollPhysics(),

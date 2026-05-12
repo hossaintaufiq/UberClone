@@ -205,7 +205,12 @@ export default function DriverCurrentTripPage() {
             
             {/* Immersive Map Container */}
             <div className="group relative min-h-[400px] flex-1 overflow-hidden rounded-[2.5rem] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-white/60 transition-all hover:shadow-[0_12px_40px_rgba(0,122,255,0.08)]">
-              <LiveRideMap pickup={pickupPoint} dropoff={dropoffPoint} driver={driverLivePoint} />
+              <LiveRideMap
+                pickup={pickupPoint}
+                dropoff={dropoffPoint}
+                driver={driverLivePoint}
+                destinationLabel={trip?.dropoffAddress || ''}
+              />
               <div className="absolute left-6 top-6 flex items-center gap-3 rounded-full bg-white/90 px-5 py-2.5 shadow-lg ring-1 ring-black/5 backdrop-blur-xl">
                 <div className="relative flex h-3 w-3">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#34c759] opacity-75"></span>

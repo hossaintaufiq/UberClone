@@ -78,7 +78,7 @@ class _RiderTripSummaryBodyState extends State<_RiderTripSummaryBody> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _merge();
       final rn = (_ride["riderRating"] as num?)?.clamp(1, 5);
-      final s = rn != null ? rn.round() : 0;
+      final s = rn != null ? rn.round() : 5;
       if (!mounted) return;
       setState(() {
         _stars = s;
@@ -121,10 +121,7 @@ class _RiderTripSummaryBodyState extends State<_RiderTripSummaryBody> {
   }
 
   Future<void> _submitFeedback() async {
-    if (_id.isEmpty || _stars < 1) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Choose a star rating first.")));
-      return;
-    }
+    if (_id.isEmpty) return;
     setState(() => _fbBusy = true);
     try {
       await RiderService.rateDriver(_id, _stars, comment: _comment.text.trim());
@@ -156,6 +153,10 @@ class _RiderTripSummaryBodyState extends State<_RiderTripSummaryBody> {
     final durLabel = tripMin != null ? "$tripMin min" : "—";
     final needPay = rideNeedsPayment(_ride);
     final st = "${_ride["status"] ?? ""}".toLowerCase();
+    final ratingRaw = num.tryParse("${_ride["riderRating"] ?? ""}");
+    final hasSavedRating = ratingRaw != null && ratingRaw >= 1 && ratingRaw <= 5;
+    final hasSavedComment = "${_ride["riderFeedback"] ?? ""}".trim().isNotEmpty;
+    final feedbackLocked = hasSavedRating || hasSavedComment;
 
     return Container(
       height: h,
@@ -267,18 +268,22 @@ class _RiderTripSummaryBodyState extends State<_RiderTripSummaryBody> {
                             children: [
                               const Text("Your rating", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: kMuted)),
                               const SizedBox(height: 6),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              Wrap(
+                                alignment: WrapAlignment.center,
+                                spacing: 2,
+                                runSpacing: 2,
                                 children: List.generate(5, (i) {
                                   final n = i + 1;
-                                  return IconButton(
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                    onPressed: () => setState(() => _stars = n),
-                                    icon: Icon(
-                                      Icons.star_rounded,
-                                      color: n <= _stars ? const Color(0xFFFBBF24) : const Color(0xFFCBD5E1),
-                                      size: 26,
+                                  return InkResponse(
+                                    radius: 16,
+                                    onTap: feedbackLocked ? null : () => setState(() => _stars = n),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(2),
+                                      child: Icon(
+                                        Icons.star_rounded,
+                                        color: n <= _stars ? const Color(0xFFFBBF24) : const Color(0xFFCBD5E1),
+                                        size: 24,
+                                      ),
                                     ),
                                   );
                                 }),
@@ -376,6 +381,7 @@ class _RiderTripSummaryBodyState extends State<_RiderTripSummaryBody> {
                   const SizedBox(height: 6),
                   TextField(
                     controller: _comment,
+                    readOnly: feedbackLocked,
                     maxLines: 4,
                     maxLength: 2000,
                     decoration: InputDecoration(
@@ -385,14 +391,21 @@ class _RiderTripSummaryBodyState extends State<_RiderTripSummaryBody> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                   ),
+                  if (feedbackLocked) ...[
+                    const SizedBox(height: 4),
+                    const Text(
+                      "Feedback already submitted for this trip.",
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF16A34A)),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   FilledButton(
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(48),
                       backgroundColor: _kTeal,
                     ),
-                    onPressed: (_fbBusy || _stars < 1) ? null : _submitFeedback,
-                    child: Text(_fbBusy ? "Saving…" : "Submit feedback"),
+                    onPressed: (feedbackLocked || _fbBusy || _stars < 1) ? null : _submitFeedback,
+                    child: Text(feedbackLocked ? "Feedback submitted" : _fbBusy ? "Saving…" : "Submit feedback"),
                   ),
                   const SizedBox(height: 12),
                   FilledButton(

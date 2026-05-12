@@ -2,6 +2,7 @@ import "dart:async";
 
 import "package:flutter/material.dart";
 import "package:flutter_map/flutter_map.dart";
+import "package:geolocator/geolocator.dart";
 import "package:latlong2/latlong.dart";
 
 import "../../core/app_theme.dart";
@@ -39,6 +40,8 @@ class _RiderBookTabState extends State<RiderBookTab> {
   Timer? _dropoffDebounce;
   bool _pickupSearchBusy = false;
   bool _dropoffSearchBusy = false;
+  bool _pickupLocating = false;
+  bool _dropoffLocating = false;
   bool _busy = false;
   List<dynamic> _activeDrivers = [];
   List<dynamic> _pastDrivers = [];
@@ -291,6 +294,75 @@ class _RiderBookTabState extends State<RiderBookTab> {
     }
   }
 
+  Future<void> _useCurrentLocation({required bool forPickup}) async {
+    if (!mounted) return;
+    setState(() {
+      if (forPickup) {
+        _pickupLocating = true;
+      } else {
+        _dropoffLocating = true;
+      }
+    });
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) {
+        throw Exception("Please turn on device location service.");
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        throw Exception("Location permission denied. Please allow location access.");
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 12),
+      );
+      final point = LatLng(pos.latitude, pos.longitude);
+      String label;
+      try {
+        label = await GeocodingService.reverse(point.latitude, point.longitude);
+      } catch (_) {
+        label = "${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}";
+      }
+      if (!mounted) return;
+      setState(() {
+        if (forPickup) {
+          _pickup = point;
+          _pickupCtrl.text = label;
+          _pickupOptions = [];
+        } else {
+          _dropoff = point;
+          _dropoffCtrl.text = label;
+          _dropoffOptions = [];
+        }
+      });
+      _removePickupOverlay();
+      _removeDropoffOverlay();
+      if (forPickup) {
+        await _loadDriverChoices();
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(forPickup ? "Pickup set from current location." : "Dropoff set from current location.")),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$e")));
+    } finally {
+      if (mounted) {
+        setState(() {
+          if (forPickup) {
+            _pickupLocating = false;
+          } else {
+            _dropoffLocating = false;
+          }
+        });
+      }
+    }
+  }
+
   /// Backend accepts one `ride_type`; intercity categories map to dedicated enum values.
   String _apiRideType() {
     switch (_tripCategory) {
@@ -414,84 +486,115 @@ class _RiderBookTabState extends State<RiderBookTab> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
       children: [
-        const Text("Ride type", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            _chip("single", "Single"),
-            _chip("share", "Share"),
-            _chip("family", "Family"),
-          ],
+        Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Where to today?", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+              SizedBox(height: 4),
+              Text("Choose trip type, set route, then request a ride.", style: TextStyle(color: Color(0xFFCBD5E1), fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+        _sectionCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Ride type", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  _chip("single", "Single"),
+                  _chip("share", "Share"),
+                  _chip("family", "Family"),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text("Trip category", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(child: _tripCatChip(key: "city", label: "Inside City", icon: Icons.apartment_rounded)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _tripCatChip(key: "intercity_reserve", label: "Intercity", icon: Icons.alt_route_rounded)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _tripCatChip(key: "daytrip", label: "Day trip", icon: Icons.wb_sunny_rounded)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text("Booking", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: ChoiceChip(
+                      avatar: Icon(Icons.directions_car_filled_rounded, size: 18, color: _bookingMode == "full_car" ? kPrimary : kMuted),
+                      label: const Text("Full car"),
+                      selected: _bookingMode == "full_car",
+                      onSelected: (_) => setState(() {
+                        _bookingMode = "full_car";
+                        _party = _capacity;
+                      }),
+                      selectedColor: kPrimary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ChoiceChip(
+                      avatar: Icon(Icons.people_rounded, size: 18, color: _bookingMode == "seat_share" ? kPrimary : kMuted),
+                      label: const Text("Share seats"),
+                      selected: _bookingMode == "seat_share",
+                      onSelected: (_) => setState(() => _bookingMode = "seat_share"),
+                      selectedColor: kPrimary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      initialValue: _capacity,
+                      decoration: const InputDecoration(labelText: "Car seats", border: OutlineInputBorder()),
+                      items: [4, 5, 6, 7, 8].map((n) => DropdownMenuItem(value: n, child: Text("$n seats"))).toList(),
+                      onChanged: (v) => setState(() {
+                        _capacity = v ?? 5;
+                        _party = _party.clamp(1, _capacity);
+                      }),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  if (_bookingMode == "seat_share")
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        initialValue: _party.clamp(1, _capacity),
+                        decoration: const InputDecoration(labelText: "Your group", border: OutlineInputBorder()),
+                        items: List.generate(_capacity, (i) => i + 1).map((n) => DropdownMenuItem(value: n, child: Text("$n seat${n == 1 ? "" : "s"}"))).toList(),
+                        onChanged: (v) => setState(() => _party = v ?? 1),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
-        const Text("Trip category", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(child: _tripCatChip(key: "city", label: "Inside City", icon: Icons.apartment_rounded)),
-            const SizedBox(width: 8),
-            Expanded(child: _tripCatChip(key: "intercity_reserve", label: "Intercity", icon: Icons.alt_route_rounded)),
-            const SizedBox(width: 8),
-            Expanded(child: _tripCatChip(key: "daytrip", label: "Day trip", icon: Icons.wb_sunny_rounded)),
-          ],
-        ),
-        const SizedBox(height: 16),
-        const Text("Booking", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: ChoiceChip(
-                avatar: Icon(Icons.directions_car_filled_rounded, size: 18, color: _bookingMode == "full_car" ? kPrimary : kMuted),
-                label: const Text("Full car"),
-                selected: _bookingMode == "full_car",
-                onSelected: (_) => setState(() {
-                  _bookingMode = "full_car";
-                  _party = _capacity;
-                }),
-                selectedColor: kPrimary.withValues(alpha: 0.2),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ChoiceChip(
-                avatar: Icon(Icons.people_rounded, size: 18, color: _bookingMode == "seat_share" ? kPrimary : kMuted),
-                label: const Text("Share seats"),
-                selected: _bookingMode == "seat_share",
-                onSelected: (_) => setState(() => _bookingMode = "seat_share"),
-                selectedColor: kPrimary.withValues(alpha: 0.2),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<int>(
-                initialValue: _capacity,
-                decoration: const InputDecoration(labelText: "Car seats", border: OutlineInputBorder()),
-                items: [4, 5, 6, 7, 8].map((n) => DropdownMenuItem(value: n, child: Text("$n seats"))).toList(),
-                onChanged: (v) => setState(() {
-                  _capacity = v ?? 5;
-                  _party = _party.clamp(1, _capacity);
-                }),
-              ),
-            ),
-            const SizedBox(width: 12),
-            if (_bookingMode == "seat_share")
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: _party.clamp(1, _capacity),
-                  decoration: const InputDecoration(labelText: "Your group", border: OutlineInputBorder()),
-                  items: List.generate(_capacity, (i) => i + 1).map((n) => DropdownMenuItem(value: n, child: Text("$n seat${n == 1 ? "" : "s"}"))).toList(),
-                  onChanged: (v) => setState(() => _party = v ?? 1),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 16),
+        _sectionCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
         const Text("Pickup", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
         const SizedBox(height: 6),
         LayoutBuilder(
@@ -510,6 +613,17 @@ class _RiderBookTabState extends State<RiderBookTab> {
               ),
             );
           },
+        ),
+        const SizedBox(height: 6),
+        Align(
+          alignment: Alignment.centerRight,
+          child: OutlinedButton.icon(
+            onPressed: _pickupLocating ? null : () => _useCurrentLocation(forPickup: true),
+            icon: _pickupLocating
+                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.my_location_rounded, size: 16),
+            label: Text(_pickupLocating ? "Locating..." : "Use current location"),
+          ),
         ),
         if (_pickupSearchBusy) const LinearProgressIndicator(minHeight: 2),
         const SizedBox(height: 14),
@@ -532,8 +646,26 @@ class _RiderBookTabState extends State<RiderBookTab> {
             );
           },
         ),
+        const SizedBox(height: 6),
+        Align(
+          alignment: Alignment.centerRight,
+          child: OutlinedButton.icon(
+            onPressed: _dropoffLocating ? null : () => _useCurrentLocation(forPickup: false),
+            icon: _dropoffLocating
+                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.my_location_rounded, size: 16),
+            label: Text(_dropoffLocating ? "Locating..." : "Use current location"),
+          ),
+        ),
         if (_dropoffSearchBusy) const LinearProgressIndicator(minHeight: 2),
+            ],
+          ),
+        ),
         const SizedBox(height: 12),
+        _sectionCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
         Row(
           children: [
             const Expanded(
@@ -593,6 +725,9 @@ class _RiderBookTabState extends State<RiderBookTab> {
           ),
           if (_pastDrivers.isEmpty) const Text("No past drivers yet.", style: TextStyle(fontSize: 12, color: kMuted)),
         ],
+            ],
+          ),
+        ),
         const SizedBox(height: 12),
         const Text("Route preview (map is read-only)", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: kMuted)),
         const SizedBox(height: 6),
@@ -685,6 +820,18 @@ class _RiderBookTabState extends State<RiderBookTab> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _sectionCard({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: kCardBorder),
+      ),
+      child: child,
     );
   }
 }

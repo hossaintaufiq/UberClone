@@ -5,12 +5,12 @@ import { PlaceSearchField } from '../components/PlaceSearchField'
 import { TOKEN_KEY } from '../constants/auth'
 import { apiRequest } from '../services/api'
 import { joinRideRoom, onDriverLocation, onRealtimeRefresh } from '../services/realtime'
-import { formatCoordsLabel } from '../services/geocoding'
+import { formatCoordsLabel, reverseGeocode } from '../services/geocoding'
 import { previewRidePricing } from '../utils/ridePricingPreview'
 import { riderFacingRideUI, DRIVER_MATCHING_EXPLAINER, paymentMethodLabel, rideNeedsPayment } from '../utils/rideStatus'
 import ConfirmToast from '../components/ConfirmToast'
 import RiderTripSummaryModal from '../components/RiderTripSummaryModal'
-import { User, Users, UsersRound, Building2, Route, Sun, Home, Car, MapPin, ClipboardList, Banknote, Bell, UserCircle, MessageCircle, Map as MapIcon, Compass, Navigation, ArrowRight, FileText } from 'lucide-react'
+import { User, Users, UsersRound, Building2, Route, Sun, Home, Car, MapPin, ClipboardList, Banknote, Bell, UserCircle, MessageCircle, Map as MapIcon, Compass, Navigation, ArrowRight, FileText, LocateFixed } from 'lucide-react'
 
 const rideTypes = [
   { key: 'single', label: 'Single', icon: <User size={28} />, desc: 'Solo ride' },
@@ -61,6 +61,8 @@ export default function RiderAppPage() {
   const [driverChoicesLoading, setDriverChoicesLoading] = useState(false)
   const [selectedDriverId, setSelectedDriverId] = useState('')
   const [incomingBusyRideId, setIncomingBusyRideId] = useState('')
+  const [locatingPickup, setLocatingPickup] = useState(false)
+  const [locatingDropoff, setLocatingDropoff] = useState(false)
 
   const farePreview = useMemo(() => {
     if (!pickupPt || !dropoffPt) return null
@@ -347,6 +349,53 @@ export default function RiderAppPage() {
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY)
     navigate('/rider/login')
+  }
+
+  const pickCurrentLocation = async (target = 'pickup') => {
+    const isPickup = target === 'pickup'
+    try {
+      if (!navigator.geolocation) {
+        setMessage('Location is not supported on this browser.')
+        return
+      }
+      if (isPickup) setLocatingPickup(true)
+      else setLocatingDropoff(true)
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 12000,
+          maximumAge: 30000,
+        })
+      })
+      const lat = Number(pos?.coords?.latitude)
+      const lng = Number(pos?.coords?.longitude)
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        throw new Error('Could not read your location coordinates.')
+      }
+      let label = ''
+      try {
+        label = await reverseGeocode(lat, lng)
+      } catch {
+        label = formatCoordsLabel(lat, lng)
+      }
+      if (isPickup) {
+        setPickupPt({ lat, lng })
+        setPickupAddressField(label || formatCoordsLabel(lat, lng))
+      } else {
+        setDropoffPt({ lat, lng })
+        setDropoffAddressField(label || formatCoordsLabel(lat, lng))
+      }
+      setConfirmToast(isPickup ? 'Pickup set from current location.' : 'Dropoff set from current location.')
+    } catch (err) {
+      const code = Number(err?.code)
+      if (code === 1) setMessage('Location permission denied. Please allow location access.')
+      else if (code === 2) setMessage('Location unavailable. Please try again.')
+      else if (code === 3) setMessage('Location request timed out. Please try again.')
+      else setMessage(err?.message || 'Could not fetch current location.')
+    } finally {
+      if (isPickup) setLocatingPickup(false)
+      else setLocatingDropoff(false)
+    }
   }
 
   const payForRide = async (rideId, method) => {
@@ -771,6 +820,17 @@ export default function RiderAppPage() {
                     setPickupAddressField(label)
                   }}
                 />
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => pickCurrentLocation('pickup')}
+                    disabled={locatingPickup}
+                    className="inline-flex items-center gap-1 rounded-full bg-[#e8f4fd] px-3 py-1.5 text-[12px] font-bold text-[#007AFF] ring-1 ring-[#007AFF]/20 disabled:opacity-60"
+                  >
+                    <LocateFixed size={14} />
+                    {locatingPickup ? 'Locating…' : 'Use current location'}
+                  </button>
+                </div>
                 {pickupPt ? (
                   <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#607282]">
                     Coords: <span className="break-all font-mono text-[#1c2731]">{formatCoordsLabel(pickupPt.lat, pickupPt.lng)}</span>
@@ -794,6 +854,17 @@ export default function RiderAppPage() {
                     setDropoffAddressField(label)
                   }}
                 />
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => pickCurrentLocation('dropoff')}
+                    disabled={locatingDropoff}
+                    className="inline-flex items-center gap-1 rounded-full bg-[#fff5f5] px-3 py-1.5 text-[12px] font-bold text-[#ff3b30] ring-1 ring-[#ff3b30]/20 disabled:opacity-60"
+                  >
+                    <LocateFixed size={14} />
+                    {locatingDropoff ? 'Locating…' : 'Use current location'}
+                  </button>
+                </div>
                 {dropoffPt ? (
                   <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#607282]">
                     Coords: <span className="break-all font-mono text-[#1c2731]">{formatCoordsLabel(dropoffPt.lat, dropoffPt.lng)}</span>
@@ -975,6 +1046,7 @@ export default function RiderAppPage() {
                     pickup={activePickupPoint}
                     dropoff={activeDropoffPoint}
                     driver={driverLivePoint}
+                    destinationLabel={activeRide?.dropoffAddress || ''}
                   />
                   <div className="absolute right-6 top-6">
                     <span className={`rounded-full px-4 py-2 text-[12px] font-black uppercase tracking-wider shadow-md backdrop-blur-md ${statusColors[activeRide.status] || 'bg-white/90 text-[#1c2731]'}`}>{activeRideUi.badge}</span>

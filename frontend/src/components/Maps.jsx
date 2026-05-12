@@ -41,6 +41,28 @@ function RecenterOnDriver({ driver }) {
   return null
 }
 
+function haversineKm(aLat, aLng, bLat, bLng) {
+  const toRad = (v) => (v * Math.PI) / 180
+  const R = 6371
+  const dLat = toRad((bLat || 0) - (aLat || 0))
+  const dLng = toRad((bLng || 0) - (aLng || 0))
+  const x =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(aLat || 0)) * Math.cos(toRad(bLat || 0)) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x))
+  return R * c
+}
+
+async function getRouteLine(start, end, signal) {
+  if (!start || !end) return []
+  const url = `https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`
+  const res = await fetch(url, { signal })
+  const json = await res.json()
+  const coords = json?.routes?.[0]?.geometry?.coordinates
+  if (!Array.isArray(coords) || coords.length < 2) return []
+  return coords.map(([lng, lat]) => [lat, lng])
+}
+
 /** Avoid Leaflet "container already initialized" under React StrictMode dev double-mount. */
 function MapMountGate({ children }) {
   const [ready, setReady] = useState(false)
@@ -100,27 +122,62 @@ export function RideRoutePreviewMap({ pickup, dropoff, className = '' }) {
   )
 }
 
-export function LiveRideMap({ pickup, dropoff, driver }) {
+export function LiveRideMap({ pickup, dropoff, driver, destinationLabel = '' }) {
   const center = useMemo(() => {
     if (driver?.lat && driver?.lng) return [driver.lat, driver.lng]
     if (pickup?.lat && pickup?.lng) return [pickup.lat, pickup.lng]
     return [23.8103, 90.4125]
   }, [driver?.lat, driver?.lng, pickup?.lat, pickup?.lng])
+  const [routeLine, setRouteLine] = useState([])
+  const [remainingLine, setRemainingLine] = useState([])
 
-  const line = pickup && dropoff ? [[pickup.lat, pickup.lng], [dropoff.lat, dropoff.lng]] : []
+  useEffect(() => {
+    if (!pickup || !dropoff) {
+      setRouteLine([])
+      return
+    }
+    const ctrl = new AbortController()
+    getRouteLine(pickup, dropoff, ctrl.signal)
+      .then((line) => setRouteLine(line))
+      .catch(() => setRouteLine([[pickup.lat, pickup.lng], [dropoff.lat, dropoff.lng]]))
+    return () => ctrl.abort()
+  }, [pickup?.lat, pickup?.lng, dropoff?.lat, dropoff?.lng])
+
+  useEffect(() => {
+    if (!driver || !dropoff) {
+      setRemainingLine([])
+      return
+    }
+    const ctrl = new AbortController()
+    getRouteLine(driver, dropoff, ctrl.signal)
+      .then((line) => setRemainingLine(line))
+      .catch(() => setRemainingLine([[driver.lat, driver.lng], [dropoff.lat, dropoff.lng]]))
+    return () => ctrl.abort()
+  }, [driver?.lat, driver?.lng, dropoff?.lat, dropoff?.lng])
+
+  const totalKm = pickup && dropoff ? haversineKm(pickup.lat, pickup.lng, dropoff.lat, dropoff.lng) : 0
+  const remainingKm = driver && dropoff ? haversineKm(driver.lat, driver.lng, dropoff.lat, dropoff.lng) : totalKm
+  const progressPct = totalKm > 0 ? Math.max(0, Math.min(100, Math.round(((totalKm - remainingKm) / totalKm) * 100))) : 0
 
   return (
-    <div className="h-64 overflow-hidden rounded-xl border border-[#d6e8f6]">
+    <div className="relative h-64 overflow-hidden rounded-xl border border-[#d6e8f6]">
       <MapMountGate>
         <MapContainer center={center} zoom={12} style={{ height: '100%', width: '100%' }}>
           <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           {pickup ? <Marker position={[pickup.lat, pickup.lng]} icon={pickupPinIcon} /> : null}
           {dropoff ? <Marker position={[dropoff.lat, dropoff.lng]} icon={dropoffPinIcon} /> : null}
           {driver ? <Marker position={[driver.lat, driver.lng]} icon={driverPinIcon} /> : null}
-          {line.length ? <Polyline positions={line} pathOptions={{ color: '#3B82F6', weight: 4 }} /> : null}
+          {routeLine.length ? <Polyline positions={routeLine} pathOptions={{ color: '#93c5fd', weight: 4 }} /> : null}
+          {remainingLine.length ? <Polyline positions={remainingLine} pathOptions={{ color: '#2563eb', weight: 5 }} /> : null}
           <RecenterOnDriver driver={driver} />
         </MapContainer>
       </MapMountGate>
+      <div className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-[#1c2731] ring-1 ring-[#d9e3ec]">
+        {destinationLabel ? `Going to: ${destinationLabel}` : 'En route'}
+      </div>
+      <div className="pointer-events-none absolute bottom-2 left-2 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-[#2563eb] ring-1 ring-[#d9e3ec]">
+        Progress: {progressPct}% · Remaining {remainingKm.toFixed(1)} km
+      </div>
     </div>
   )
 }

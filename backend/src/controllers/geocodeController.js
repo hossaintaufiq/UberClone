@@ -49,6 +49,53 @@ function nominatimSearch(q, limit) {
   });
 }
 
+function nominatimReverse(lat, lng) {
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lng),
+    format: "json",
+    addressdetails: "1",
+  });
+  const path = `/reverse?${params.toString()}`;
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: "nominatim.openstreetmap.org",
+        path,
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "User-Agent": UA,
+        },
+      },
+      (res) => {
+        let body = "";
+        res.on("data", (c) => {
+          body += c;
+        });
+        res.on("end", () => {
+          if (res.statusCode && res.statusCode >= 400) {
+            reject(new Error(`Nominatim HTTP ${res.statusCode}`));
+            return;
+          }
+          try {
+            const j = JSON.parse(body);
+            resolve(j && typeof j === "object" ? j : {});
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }
+    );
+    req.on("error", reject);
+    req.setTimeout(12000, () => {
+      req.destroy();
+      reject(new Error("Reverse geocode timeout"));
+    });
+    req.end();
+  });
+}
+
 exports.searchPlaces = async (req, res) => {
   try {
     const q = String(req.query.q || "").trim();
@@ -69,5 +116,28 @@ exports.searchPlaces = async (req, res) => {
   } catch (e) {
     console.error("geocode search", e);
     return res.status(502).json({ success: false, message: "Place search temporarily unavailable." });
+  }
+};
+
+exports.reversePlace = async (req, res) => {
+  try {
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return res.status(400).json({ success: false, message: "Valid lat and lng are required." });
+    }
+    const raw = await nominatimReverse(lat, lng);
+    const label = typeof raw.display_name === "string" ? raw.display_name.trim() : "";
+    return res.json({
+      success: true,
+      data: {
+        lat,
+        lng,
+        label: label || `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+      },
+    });
+  } catch (e) {
+    console.error("geocode reverse", e);
+    return res.status(502).json({ success: false, message: "Reverse geocoding temporarily unavailable." });
   }
 };

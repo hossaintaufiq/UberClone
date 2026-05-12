@@ -34,12 +34,24 @@ export default function RiderTripSummaryModal({
 
   const needPay = rideNeedsPayment(ride)
   const paidMethod = ride?.paymentPaid ? paymentMethodLabel(ride?.paymentMethod) : null
+  const feedbackLocked = (() => {
+    const rating = Number(ride?.riderRating)
+    const hasRating = Number.isFinite(rating) && rating >= 1 && rating <= 5
+    const hasComment = String(ride?.riderFeedback || '').trim().length > 0
+    return hasRating || hasComment
+  })()
 
-  const [stars, setStars] = useState(() => Math.min(5, Math.max(0, Number(ride?.riderRating) || 0)))
+  const [stars, setStars] = useState(() => {
+    const raw = Number(ride?.riderRating)
+    const seeded = Number.isFinite(raw) && raw >= 1 && raw <= 5 ? raw : 5
+    return Math.min(5, Math.max(1, seeded))
+  })
   const [comment, setComment] = useState(() => String(ride?.riderFeedback || ''))
 
   useEffect(() => {
-    setStars(Math.min(5, Math.max(0, Number(ride?.riderRating) || 0)))
+    const raw = Number(ride?.riderRating)
+    const seeded = Number.isFinite(raw) && raw >= 1 && raw <= 5 ? raw : 5
+    setStars(Math.min(5, Math.max(1, seeded)))
     setComment(String(ride?.riderFeedback || ''))
   }, [ride?._id, ride?.riderRating, ride?.riderFeedback])
 
@@ -131,7 +143,14 @@ export default function RiderTripSummaryModal({
               <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#94a3b8]">Your rating</p>
               <div className="mt-2 flex justify-center gap-0.5">
                 {[1, 2, 3, 4, 5].map((n) => (
-                  <button key={n} type="button" onClick={() => setStars(n)} className="p-0.5" aria-label={`${n} stars`}>
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setStars(n)}
+                    disabled={feedbackLocked}
+                    className="p-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+                    aria-label={`${n} stars`}
+                  >
                     <Star size={20} className={n <= stars ? 'fill-amber-400 text-amber-400' : 'text-[#cbd5e1]'} />
                   </button>
                 ))}
@@ -204,18 +223,22 @@ export default function RiderTripSummaryModal({
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
+              readOnly={feedbackLocked}
               rows={4}
               maxLength={2000}
               placeholder="How was the ride?"
               className="mt-3 w-full resize-none rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 text-[14px] font-medium text-[#1c2731] outline-none ring-[#0f766e]/0 transition-all focus:border-[#99f6e4] focus:ring-4 focus:ring-[#0f766e]/15"
             />
+            {feedbackLocked ? (
+              <p className="mt-2 text-[12px] font-semibold text-[#16a34a]">Feedback already submitted for this trip.</p>
+            ) : null}
             <button
               type="button"
-              disabled={busyFb || stars < 1}
+              disabled={feedbackLocked || busyFb || stars < 1}
               onClick={() => onSubmitFeedback(id, stars, comment)}
               className="mt-4 w-full rounded-2xl bg-[#0f766e] py-3.5 text-[14px] font-black text-white shadow-md transition-all hover:bg-[#115e59] disabled:cursor-not-allowed disabled:opacity-45"
             >
-              {busyFb ? 'Saving…' : 'Submit feedback'}
+              {feedbackLocked ? 'Feedback submitted' : busyFb ? 'Saving…' : 'Submit feedback'}
             </button>
           </div>
         </div>

@@ -150,7 +150,88 @@ class _RiderShellState extends State<RiderShell> {
     final safeIndex = selectedIndex < 0 ? 0 : selectedIndex;
 
     return Scaffold(
-      body: tabs[safeIndex].body,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0A84FF), Color(0xFF0062CC)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: const [BoxShadow(color: Color(0x220062CC), blurRadius: 14, offset: Offset(0, 6))],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.white.withValues(alpha: 0.18),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.two_wheeler_rounded, color: Colors.white),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Transitely Rider",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+                        ),
+                        Text(
+                          "Book • Track • Pay",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, color: Color(0xFFDCEBFF), fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Flexible(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: (_hasIncoming ? const Color(0xFFFFF7ED) : Colors.white.withValues(alpha: 0.2)),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            _hasIncoming ? "Incoming live" : "No incoming",
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: _hasIncoming ? const Color(0xFFD97706) : Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                child: KeyedSubtree(key: ValueKey(tabs[safeIndex].key), child: tabs[safeIndex].body),
+              ),
+            ),
+          ],
+        ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _assistant,
         backgroundColor: kPrimary,

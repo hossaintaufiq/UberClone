@@ -340,15 +340,23 @@ exports.rateDriver = async (req, res) => {
     if (String(ride.status || "").toLowerCase() !== "completed") {
       return res.status(400).json({ success: false, message: "You can review after the trip is completed." });
     }
-    const rating = Number(req.body.rating);
+    const alreadyRated = Number.isFinite(Number(ride.riderRating)) && Number(ride.riderRating) >= 1 && Number(ride.riderRating) <= 5;
+    const alreadyCommented = typeof ride.riderFeedback === "string" && ride.riderFeedback.trim().length > 0;
+    if (alreadyRated || alreadyCommented) {
+      return res.status(409).json({ success: false, message: "Feedback can be submitted only once per trip." });
+    }
+    const textFeedback = String(req.body.comment ?? req.body.feedback ?? "").trim();
+    let rating = Number(req.body.rating);
+    if ((!Number.isFinite(rating) || rating < 1 || rating > 5) && textFeedback.length > 0) {
+      const fallback = Number(ride.riderRating || 5);
+      rating = Number.isFinite(fallback) && fallback >= 1 && fallback <= 5 ? fallback : 5;
+    }
     if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
       return res.status(400).json({ success: false, message: "Rating must be between 1 and 5." });
     }
     const update = { riderRating: rating };
     if (req.body.comment != null || req.body.feedback != null) {
-      update.riderFeedback = String(req.body.comment ?? req.body.feedback ?? "")
-        .trim()
-        .slice(0, 2000);
+      update.riderFeedback = textFeedback.slice(0, 2000);
     }
     await Ride.findByIdAndUpdate(req.params.id, update);
     if (ride.driverId) await refreshDriverAverageRating(ride.driverId);

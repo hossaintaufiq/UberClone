@@ -1,12 +1,14 @@
 import "dart:async";
 
 import "package:flutter/material.dart";
+import "package:latlong2/latlong.dart";
 import "package:shared_preferences/shared_preferences.dart";
 
 import "../../core/app_theme.dart";
 import "../../core/auth_prefs.dart";
 import "../../services/driver_service.dart";
 import "../../widgets/nav_assistant_sheet.dart";
+import "../../widgets/live_trip_map_card.dart";
 import "../home_portal_screen.dart";
 import "driver_feedback_screen.dart";
 
@@ -407,6 +409,22 @@ class _DriverTripState extends State<_DriverTrip> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Builder(builder: (_) {
+                          final pLat = num.tryParse("${r["pickupLat"] ?? ""}")?.toDouble();
+                          final pLng = num.tryParse("${r["pickupLng"] ?? ""}")?.toDouble();
+                          final dLat = num.tryParse("${r["dropoffLat"] ?? ""}")?.toDouble();
+                          final dLng = num.tryParse("${r["dropoffLng"] ?? ""}")?.toDouble();
+                          final pickup = (pLat != null && pLng != null) ? LatLng(pLat, pLng) : null;
+                          final dropoff = (dLat != null && dLng != null) ? LatLng(dLat, dLng) : null;
+                          return LiveTripMapCard(
+                            pickup: pickup,
+                            dropoff: dropoff,
+                            current: pickup,
+                            status: "${r["status"] ?? ""}",
+                            destinationLabel: "${r["dropoffAddress"] ?? ""}",
+                          );
+                        }),
+                        const SizedBox(height: 10),
                         Text("${r["status"]}".toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w800, color: kDriverGreen, fontSize: 11)),
                         const SizedBox(height: 8),
                         Text("${r["pickupAddress"] ?? ""} → ${r["dropoffAddress"] ?? ""}", style: const TextStyle(fontWeight: FontWeight.w700)),

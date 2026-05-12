@@ -1,11 +1,13 @@
 import "dart:async";
 
 import "package:flutter/material.dart";
+import "package:latlong2/latlong.dart";
 import "../../core/app_theme.dart";
 import "../../services/rider_service.dart";
 import "../../utils/ride_status.dart";
 
 import "rider_trip_summary_sheet.dart";
+import "../../widgets/live_trip_map_card.dart";
 
 String _pu(dynamic r) => "${r["pickupAddress"] ?? r["pickup_address"] ?? ""}";
 String _do(dynamic r) => "${r["dropoffAddress"] ?? r["dropoff_address"] ?? ""}";
@@ -64,6 +66,7 @@ class _RiderHomeTabState extends State<RiderHomeTab> {
   @override
   Widget build(BuildContext context) {
     final active = _rides.cast<dynamic>().where(_active).firstOrNull;
+    final name = "${_profile["name"] ?? "Rider"}".trim();
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -72,13 +75,52 @@ class _RiderHomeTabState extends State<RiderHomeTab> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
         children: [
           if (_loading) const LinearProgressIndicator(minHeight: 2),
-          Text(
-            "Hi, ${_profile["name"] ?? "Rider"}",
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: kText),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF111827), Color(0xFF1E3A8A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Hi, $name", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white)),
+                      const SizedBox(height: 4),
+                      const Text("Ready for your next ride?", style: TextStyle(color: Color(0xFFC7D2FE), fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.route_rounded, color: Colors.white),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 6),
-          const Text("Overview & quick actions", style: TextStyle(color: kMuted, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(child: _quickAction("Book", Icons.local_taxi_rounded, () => widget.onGoTab(1))),
+              const SizedBox(width: 10),
+              Expanded(child: _quickAction("Track", Icons.navigation_rounded, () => widget.onGoTab(2))),
+              const SizedBox(width: 10),
+              Expanded(child: _quickAction("History", Icons.history_rounded, () => widget.onGoTab(3))),
+            ],
+          ),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(child: _statCard("Trips", "${_rides.length}", Icons.directions_car_filled_rounded)),
@@ -170,6 +212,31 @@ class _RiderHomeTabState extends State<RiderHomeTab> {
       ),
     );
   }
+
+  Widget _quickAction(String label, IconData icon, VoidCallback onTap) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: kCardBorder),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: kPrimary),
+              const SizedBox(height: 6),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 extension _FirstOrNull<E> on Iterable<E> {
@@ -247,6 +314,12 @@ class _RiderActiveTabState extends State<RiderActiveTab> {
             ...active.map((r) {
               final id = "${r["_id"] ?? r["id"]}";
               final ui = riderFacingRideUi("${r["status"]}");
+              final pLat = num.tryParse("${r["pickupLat"] ?? ""}")?.toDouble();
+              final pLng = num.tryParse("${r["pickupLng"] ?? ""}")?.toDouble();
+              final dLat = num.tryParse("${r["dropoffLat"] ?? ""}")?.toDouble();
+              final dLng = num.tryParse("${r["dropoffLng"] ?? ""}")?.toDouble();
+              final pickup = (pLat != null && pLng != null) ? LatLng(pLat, pLng) : null;
+              final dropoff = (dLat != null && dLng != null) ? LatLng(dLat, dLng) : null;
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -255,6 +328,14 @@ class _RiderActiveTabState extends State<RiderActiveTab> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      LiveTripMapCard(
+                        pickup: pickup,
+                        dropoff: dropoff,
+                        current: null,
+                        status: "${r["status"] ?? ""}",
+                        destinationLabel: "${r["dropoffAddress"] ?? ""}",
+                      ),
+                      const SizedBox(height: 10),
                       Text(ui.headline, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: kText)),
                       const SizedBox(height: 6),
                       Container(
@@ -368,8 +449,10 @@ class _RiderIncomingTabState extends State<RiderIncomingTab> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
         children: [
           if (_loading) const LinearProgressIndicator(minHeight: 2),
-          const Text("Incoming live rides", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
-          const SizedBox(height: 8),
+          const Text("Incoming live rides", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: kText)),
+          const SizedBox(height: 4),
+          const Text("Accept or reject live ride requests in real time.", style: TextStyle(color: kMuted, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 10),
           if (_rides.isEmpty)
             const Padding(
               padding: EdgeInsets.only(top: 32),
@@ -399,19 +482,23 @@ class _RiderIncomingTabState extends State<RiderIncomingTab> {
                       if (r["riderAccepted"] == true)
                         const Text("Accepted by you", style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 12)),
                       const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                      Row(
                         children: [
                           if (r["riderAccepted"] != true)
-                            FilledButton.tonal(
-                              onPressed: _busyRideId == id ? null : () => _accept(id),
-                              child: const Text("Accept"),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: _busyRideId == id ? null : () => _accept(id),
+                                style: FilledButton.styleFrom(backgroundColor: kPrimary),
+                                child: const Text("Accept"),
+                              ),
                             ),
-                          OutlinedButton(
-                            onPressed: _busyRideId == id ? null : () => _reject(id),
-                            style: OutlinedButton.styleFrom(foregroundColor: kDanger),
-                            child: const Text("Reject"),
+                          if (r["riderAccepted"] != true) const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _busyRideId == id ? null : () => _reject(id),
+                              style: OutlinedButton.styleFrom(foregroundColor: kDanger),
+                              child: const Text("Reject"),
+                            ),
                           ),
                         ],
                       ),
@@ -474,31 +561,41 @@ class _RiderHistoryTabState extends State<RiderHistoryTab> {
     final past = _rides.where((r) => !_active(r)).toList();
     return RefreshIndicator(
       onRefresh: _load,
-      child: ListView.separated(
+      child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
-        itemCount: past.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, i) {
-          final r = past[i];
-          final completed = _st(r) == "completed";
-          return DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: kCardBorder),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: completed ? () => _openTripSummary(r) : null,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+        children: [
+          const Text("Trip history", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: kText)),
+          const SizedBox(height: 4),
+          const Text("Open a completed trip to pay or view summary.", style: TextStyle(color: kMuted, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 10),
+          if (past.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 28),
+              child: Center(child: Text("No completed or cancelled rides yet.", style: TextStyle(color: kMuted, fontWeight: FontWeight.w600))),
+            )
+          else
+            ...past.map((r) {
+              final completed = _st(r) == "completed";
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: kCardBorder),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(16),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: completed ? () => _openTripSummary(r) : null,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                       Row(
                         children: [
                           Expanded(
@@ -544,13 +641,15 @@ class _RiderHistoryTabState extends State<RiderHistoryTab> {
                           label: const Text("Trip summary"),
                         ),
                       ],
-                    ],
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          );
-        },
+              );
+            }),
+        ],
       ),
     );
   }
@@ -613,7 +712,7 @@ class _RiderMoreTabState extends State<RiderMoreTab> {
           const Text("Profile", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
           const SizedBox(height: 10),
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: const BorderSide(color: kCardBorder)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -632,11 +731,18 @@ class _RiderMoreTabState extends State<RiderMoreTab> {
           if (_payments.isEmpty)
             const Text("No payments yet.", style: TextStyle(color: kMuted))
           else
-            ..._payments.take(8).map((p) => ListTile(
-                  tileColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  title: Text("৳${p["amount"] ?? 0}", style: const TextStyle(fontWeight: FontWeight.w800)),
-                  subtitle: Text("${formatPaymentMethod("${p["method"]}")} · ${p["status"] ?? ""}"),
+            ..._payments.take(8).map((p) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    tileColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: const BorderSide(color: kCardBorder),
+                    ),
+                    leading: const Icon(Icons.account_balance_wallet_rounded, color: kPrimary),
+                    title: Text("৳${p["amount"] ?? 0}", style: const TextStyle(fontWeight: FontWeight.w800)),
+                    subtitle: Text("${formatPaymentMethod("${p["method"]}")} · ${p["status"] ?? ""}"),
+                  ),
                 )),
           const SizedBox(height: 22),
           const Text("Alerts", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
@@ -644,10 +750,18 @@ class _RiderMoreTabState extends State<RiderMoreTab> {
           if (_notes.isEmpty)
             const Text("No notifications.", style: TextStyle(color: kMuted))
           else
-            ..._notes.take(10).map((n) => ListTile(
-                  leading: const Icon(Icons.notifications_active_outlined, color: kPrimary),
-                  title: Text("${n["title"] ?? ""}", style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Text("${n["message"] ?? ""}"),
+            ..._notes.take(10).map((n) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    tileColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: const BorderSide(color: kCardBorder),
+                    ),
+                    leading: const Icon(Icons.notifications_active_outlined, color: kPrimary),
+                    title: Text("${n["title"] ?? ""}", style: const TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text("${n["message"] ?? ""}"),
+                  ),
                 )),
           const SizedBox(height: 24),
           OutlinedButton.icon(
