@@ -44,7 +44,13 @@ async function calculateFare({
   partySize = 1,
 }) {
   const config = await getConfig();
-  const base = Number(distanceKm || 0) * Number(config.perKmFare || 40) * rideTypeMultiplier(rideType);
+  const normalizedDistance = Math.max(0, Number(distanceKm) || 0);
+  const perKm = Number(config.perKmFare);
+  const perKmFare = Number.isFinite(perKm) && perKm > 0 ? perKm : 40;
+  const minFareRaw = Number(config.minFare);
+  const minFare = Number.isFinite(minFareRaw) && minFareRaw > 0 ? minFareRaw : 60;
+  const baseByDistance = normalizedDistance * perKmFare * rideTypeMultiplier(rideType);
+  const base = Math.max(minFare, baseByDistance);
   const promo = (config.promoCodes || []).find((p) => p.active && p.code === String(promoCode || "").toUpperCase() && (!p.expiresAt || p.expiresAt > new Date()));
   const promoDiscount = promo ? (base * Number(promo.discountPercent || 0)) / 100 : 0;
   const tripTotalAfterPromo = Math.max(0, base - promoDiscount);
@@ -61,7 +67,9 @@ async function calculateFare({
 
   const riderSubtotal = tripTotalAfterPromo * riderPortionFactor;
   const cashbackUse = Math.min(riderSubtotal, Number(cashbackBalance || 0));
-  const finalFare = Math.max(0, riderSubtotal - cashbackUse + Number(pendingPenalty || 0));
+  const withCashback = riderSubtotal - cashbackUse + Number(pendingPenalty || 0);
+  const minimumPayable = Number.isFinite(riderSubtotal) && riderSubtotal > 0 ? 10 : 0;
+  const finalFare = Math.max(minimumPayable, withCashback);
   const commissionAmount = finalFare * Number(config.commissionRate || 0.05);
   const driverEarning = finalFare - commissionAmount;
 

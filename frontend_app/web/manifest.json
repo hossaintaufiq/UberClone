@@ -1,6 +1,6 @@
 {
-    "name": "frontend_app",
-    "short_name": "frontend_app",
+    "name": "Transitely",
+    "short_name": "Transitely",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

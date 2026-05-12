@@ -37,7 +37,8 @@ export function previewRidePricing({
 }) {
   const km = haversineKm(pickupLat, pickupLng, dropoffLat, dropoffLng)
   const mult = RIDE_TYPE_MULT[rideType] ?? 1
-  const baseTrip = km * perKmFare * mult
+  const minFare = 60
+  const baseTrip = Math.max(minFare, km * perKmFare * mult)
 
   const cap = Math.min(8, Math.max(2, Number(vehicleCapacity) || 5))
   let party = Math.min(cap, Math.max(1, Number(partySize) || 1))

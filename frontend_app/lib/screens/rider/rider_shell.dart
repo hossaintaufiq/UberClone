@@ -159,7 +159,7 @@ class _RiderShellState extends State<RiderShell> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(22),
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF0A84FF), Color(0xFF0062CC)],
+                  colors: [kPrimary, kPrimaryDark],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),

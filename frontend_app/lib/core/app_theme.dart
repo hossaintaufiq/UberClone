@@ -1,9 +1,10 @@
 import "package:flutter/material.dart";
 
-const kPrimary = Color(0xFF007AFF);
-const kPrimaryDark = Color(0xFF0062CC);
-const kSurface = Color(0xFFEDF3F9);
-const kCardBorder = Color(0xFFD9E3EC);
+/// Light blue brand palette (Transitely rider app).
+const kPrimary = Color(0xFF38BDF8);
+const kPrimaryDark = Color(0xFF0284C7);
+const kSurface = Color(0xFFF0F9FF);
+const kCardBorder = Color(0xFFC7E8F5);
 const kText = Color(0xFF1C2731);
 const kMuted = Color(0xFF607282);
 const kDriverGreen = Color(0xFF34C759);
@@ -14,8 +15,10 @@ ThemeData buildTransitelyTheme() {
     useMaterial3: true,
     colorScheme: ColorScheme.fromSeed(
       seedColor: kPrimary,
+      brightness: Brightness.light,
       surface: kSurface,
       primary: kPrimary,
+      onPrimary: Colors.white,
       secondary: const Color(0xFF34C759),
     ),
     scaffoldBackgroundColor: kSurface,

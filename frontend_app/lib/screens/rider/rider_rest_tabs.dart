@@ -30,6 +30,8 @@ class RiderHomeTab extends StatefulWidget {
 class _RiderHomeTabState extends State<RiderHomeTab> {
   Map<String, dynamic> _profile = {};
   List<dynamic> _rides = [];
+  List<dynamic> _payments = [];
+  List<dynamic> _notifications = [];
   bool _loading = true;
   Timer? _poll;
 
@@ -49,12 +51,22 @@ class _RiderHomeTabState extends State<RiderHomeTab> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final p = await RiderService.profile();
-      final rides = await RiderService.rides();
+      final results = await Future.wait([
+        RiderService.profile(),
+        RiderService.rides(),
+        RiderService.payments(),
+        RiderService.notifications(),
+      ]);
       if (!mounted) return;
+      final p = results[0] as Map<String, dynamic>;
+      final rides = results[1] as List<dynamic>;
+      final pay = results[2] as List<dynamic>;
+      final notes = results[3] as List<dynamic>;
       setState(() {
         _profile = (p["data"] as Map?)?.cast<String, dynamic>() ?? {};
         _rides = rides;
+        _payments = pay;
+        _notifications = notes;
       });
     } catch (_) {
       if (mounted) setState(() {});
@@ -67,6 +79,11 @@ class _RiderHomeTabState extends State<RiderHomeTab> {
   Widget build(BuildContext context) {
     final active = _rides.cast<dynamic>().where(_active).firstOrNull;
     final name = "${_profile["name"] ?? "Rider"}".trim();
+    final cashback = num.tryParse("${_profile["cashbackBalance"] ?? 0}") ?? 0;
+    final penalty = num.tryParse("${_profile["pendingPenalty"] ?? 0}") ?? 0;
+    final paidPayments = _payments.where((p) => "${p["status"] ?? ""}".toLowerCase() == "paid").toList();
+    final paidTotal = paidPayments.fold<num>(0, (s, p) => s + (num.tryParse("${p["amount"] ?? 0}") ?? 0));
+    final recentAlerts = _notifications.take(4).toList();
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -80,10 +97,11 @@ class _RiderHomeTabState extends State<RiderHomeTab> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(22),
               gradient: const LinearGradient(
-                colors: [Color(0xFF111827), Color(0xFF1E3A8A)],
+                colors: [kPrimary, kPrimaryDark],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
+              boxShadow: [BoxShadow(color: Color(0x5938BDF8), blurRadius: 18, offset: Offset(0, 8))],
             ),
             child: Row(
               children: [
@@ -93,7 +111,10 @@ class _RiderHomeTabState extends State<RiderHomeTab> {
                     children: [
                       Text("Hi, $name", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white)),
                       const SizedBox(height: 4),
-                      const Text("Ready for your next ride?", style: TextStyle(color: Color(0xFFC7D2FE), fontWeight: FontWeight.w600)),
+                      Text(
+                        "Ready for your next ride?",
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.88), fontWeight: FontWeight.w600),
+                      ),
                     ],
                   ),
                 ),
@@ -101,7 +122,7 @@ class _RiderHomeTabState extends State<RiderHomeTab> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   alignment: Alignment.center,
@@ -119,6 +140,147 @@ class _RiderHomeTabState extends State<RiderHomeTab> {
               const SizedBox(width: 10),
               Expanded(child: _quickAction("History", Icons.history_rounded, () => widget.onGoTab(3))),
             ],
+          ),
+          const SizedBox(height: 14),
+          Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: () => widget.onGoTab(4),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: kCardBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE0F2FE),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(Icons.account_balance_wallet_rounded, color: kPrimaryDark),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text("Wallet", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: kText)),
+                        ),
+                        Icon(Icons.chevron_right_rounded, color: kMuted.withValues(alpha: 0.8)),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _walletChip(
+                            label: "Cashback",
+                            value: _fmtTaka(cashback),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _walletChip(
+                            label: "Paid (all trips)",
+                            value: _fmtTaka(paidTotal),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (penalty > 0) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF7ED),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFDBA74)),
+                        ),
+                        child: Text(
+                          "Pending ride adjustment: ৳${penalty.round()} — settles on next trip.",
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFC2410C)),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: kCardBorder),
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 14, 12, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.notifications_active_rounded, color: kPrimaryDark, size: 22),
+                    const SizedBox(width: 8),
+                    const Text("Alerts", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: kText)),
+                    if (_notifications.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0F2FE),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          "${_notifications.length}",
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: kPrimaryDark),
+                        ),
+                      ),
+                    ],
+                    const Spacer(),
+                    TextButton(
+                      onPressed: () => widget.onGoTab(4),
+                      child: const Text("See all"),
+                    ),
+                  ],
+                ),
+                if (recentAlerts.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8, top: 4),
+                    child: Text("No alerts yet.", style: TextStyle(color: kMuted, fontWeight: FontWeight.w600)),
+                  )
+                else
+                  ...recentAlerts.map((n) {
+                    return ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: const Color(0xFFE0F2FE),
+                        child: Icon(Icons.campaign_rounded, size: 18, color: kPrimaryDark),
+                      ),
+                      title: Text(
+                        "${n["title"] ?? "Notice"}",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                      ),
+                      subtitle: Text(
+                        "${n["message"] ?? ""}",
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, height: 1.25),
+                      ),
+                    );
+                  }),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           Row(
@@ -188,6 +350,30 @@ class _RiderHomeTabState extends State<RiderHomeTab> {
                 onTap: () => widget.onGoTab(1),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtTaka(num v) {
+    if (v == v.round()) return "৳${v.round()}";
+    return "৳${v.toStringAsFixed(2)}";
+  }
+
+  Widget _walletChip({required String label, required String value}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kCardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: kMuted)),
+          const SizedBox(height: 4),
+          Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: kText)),
         ],
       ),
     );
