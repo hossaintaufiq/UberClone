@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import L from 'leaflet'
-import { MapContainer, Marker, Polyline, TileLayer, useMapEvents } from 'react-leaflet'
+import { MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
@@ -41,48 +41,39 @@ function MapMountGate({ children }) {
   return children
 }
 
-function PickerLayer({ target, onPickupChange, onDropoffChange }) {
-  useMapEvents({
-    click(event) {
-      const payload = { lat: event.latlng.lat, lng: event.latlng.lng }
-      if (target === 'pickup') onPickupChange(payload)
-      else onDropoffChange(payload)
-    },
-  })
-  return null
-}
+/** Read-only route preview after pickup & dropoff are chosen via search. */
+export function RideRoutePreviewMap({ pickup, dropoff, className = '' }) {
+  const center = useMemo(() => {
+    if (pickup && dropoff) return [(pickup.lat + dropoff.lat) / 2, (pickup.lng + dropoff.lng) / 2]
+    if (pickup) return [pickup.lat, pickup.lng]
+    if (dropoff) return [dropoff.lat, dropoff.lng]
+    return [23.8103, 90.4125]
+  }, [pickup, dropoff])
 
-export function RideMapPicker({ pickup, dropoff, onPickupChange, onDropoffChange, className = '' }) {
-  const [target, setTarget] = useState('pickup')
-  const center = useMemo(() => [23.8103, 90.4125], [])
+  const zoom = useMemo(() => {
+    if (pickup && dropoff) {
+      const dLat = Math.abs(pickup.lat - dropoff.lat)
+      const dLng = Math.abs(pickup.lng - dropoff.lng)
+      const span = Math.max(dLat, dLng)
+      if (span > 0.5) return 10
+      if (span > 0.15) return 11
+      if (span > 0.05) return 12
+      return 13
+    }
+    return 12
+  }, [pickup, dropoff])
+
   const line = pickup && dropoff ? [[pickup.lat, pickup.lng], [dropoff.lat, dropoff.lng]] : []
 
   return (
-    <div className={`grid gap-3 ${className}`}>
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setTarget('pickup')}
-          className={`rounded-[1rem] px-4 py-2 text-[13px] font-bold transition-all ${target === 'pickup' ? 'bg-[#34c759] text-white shadow-md ring-2 ring-[#34c759]/40' : 'bg-[#f8fafc] text-[#1c2731] ring-1 ring-[#d9e3ec] hover:bg-white'}`}
-        >
-          Pickup on map
-        </button>
-        <button
-          type="button"
-          onClick={() => setTarget('dropoff')}
-          className={`rounded-[1rem] px-4 py-2 text-[13px] font-bold transition-all ${target === 'dropoff' ? 'bg-[#ff3b30] text-white shadow-md ring-2 ring-[#ff3b30]/40' : 'bg-[#f8fafc] text-[#1c2731] ring-1 ring-[#d9e3ec] hover:bg-white'}`}
-        >
-          Dropoff on map
-        </button>
-      </div>
+    <div className={`relative isolate z-0 grid gap-2 ${className}`}>
       <p className="text-[12px] font-medium leading-snug text-[#8a9aab]">
-        OpenStreetMap (free). Choose pickup or dropoff, then tap the map — latitude and longitude are saved automatically. Addresses are filled when possible via OSM search.
+        Map preview only — set locations using the search fields above. Pins update when you pick a result.
       </p>
-      <div className="h-[min(320px,55vh)] min-h-[220px] overflow-hidden rounded-[1.25rem] ring-1 ring-[#d9e3ec]">
+      <div className="relative z-0 h-[min(280px,50vh)] min-h-[200px] overflow-hidden rounded-[1.25rem] ring-1 ring-[#d9e3ec]">
         <MapMountGate>
-          <MapContainer center={center} zoom={12} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
+          <MapContainer center={center} zoom={zoom} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
             <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            <PickerLayer target={target} onPickupChange={onPickupChange} onDropoffChange={onDropoffChange} />
             {pickup ? <Marker position={[pickup.lat, pickup.lng]} icon={pickupPinIcon} /> : null}
             {dropoff ? <Marker position={[dropoff.lat, dropoff.lng]} icon={dropoffPinIcon} /> : null}
             {line.length ? <Polyline positions={line} pathOptions={{ color: '#007AFF', weight: 4, opacity: 0.85 }} /> : null}

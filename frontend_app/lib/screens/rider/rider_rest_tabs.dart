@@ -122,7 +122,7 @@ class _RiderHomeTabState extends State<RiderHomeTab> {
                 contentPadding: const EdgeInsets.all(18),
                 leading: CircleAvatar(backgroundColor: kPrimary.withOpacity(0.12), child: const Icon(Icons.add_road_rounded, color: kPrimary)),
                 title: const Text("Book a ride", style: TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: const Text("OpenStreetMap pickup & dropoff, fare split options."),
+                subtitle: const Text("Search pickup & dropoff, fare split options."),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => widget.onGoTab(1),
               ),

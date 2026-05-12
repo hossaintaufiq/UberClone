@@ -39,7 +39,7 @@ class _RiderShellState extends State<RiderShell> {
         (id: "4", label: "More"),
       ],
       helpText:
-          "**Tabs**\n• Home — stats & active ride card.\n• Book — map (OpenStreetMap), full car / seat share.\n• Active — cancel if needed.\n• History — completed trips.\n• More — profile, payments, alerts, logout.\n\nSay **open book** or tap chips.",
+          "**Tabs**\n• Home — stats & active ride card.\n• Book — trip category, search pickup/dropoff, full car / seat share.\n• Active — cancel if needed.\n• History — completed trips.\n• More — profile, payments, alerts, logout.\n\nSay **open book** or tap chips.",
       onJump: (id) {
         final i = int.tryParse(id);
         if (i != null && i >= 0 && i <= 4) setState(() => _ix = i);

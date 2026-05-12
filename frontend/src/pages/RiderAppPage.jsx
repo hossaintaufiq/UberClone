@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { RideMapPicker } from '../components/Maps'
+import { RideRoutePreviewMap } from '../components/Maps'
+import { PlaceSearchField } from '../components/PlaceSearchField'
 import { TOKEN_KEY } from '../constants/auth'
 import { apiRequest } from '../services/api'
 import { onRealtimeRefresh } from '../services/realtime'
-import { formatCoordsLabel, reverseGeocode } from '../services/geocoding'
+import { formatCoordsLabel } from '../services/geocoding'
 import { previewRidePricing } from '../utils/ridePricingPreview'
 import ConfirmToast from '../components/ConfirmToast'
 import { User, Users, UsersRound, Building2, Route, Sun, Home, Car, MapPin, ClipboardList, Banknote, Bell, UserCircle, MessageCircle, Map as MapIcon, Compass, Navigation, ArrowRight, Star } from 'lucide-react'
@@ -49,7 +50,6 @@ export default function RiderAppPage() {
   const [partySize, setPartySize] = useState(1)
   const [confirmToast, setConfirmToast] = useState('')
   const [ratingBusyRideId, setRatingBusyRideId] = useState('')
-  const geocodeAbort = useRef({ pickup: null, dropoff: null })
 
   const farePreview = useMemo(() => {
     if (!pickupPt || !dropoffPt) return null
@@ -116,37 +116,11 @@ export default function RiderAppPage() {
     [state.rides]
   )
 
-  const resolvePickupOnMap = async ({ lat, lng }) => {
-    setPickupPt({ lat, lng })
-    geocodeAbort.current.pickup?.abort()
-    const ac = new AbortController()
-    geocodeAbort.current.pickup = ac
-    try {
-      const name = await reverseGeocode(lat, lng, ac.signal)
-      setPickupAddressField(name.trim() || formatCoordsLabel(lat, lng))
-    } catch (e) {
-      if (e.name !== 'AbortError') setPickupAddressField(formatCoordsLabel(lat, lng))
-    }
-  }
-
-  const resolveDropoffOnMap = async ({ lat, lng }) => {
-    setDropoffPt({ lat, lng })
-    geocodeAbort.current.dropoff?.abort()
-    const ac = new AbortController()
-    geocodeAbort.current.dropoff = ac
-    try {
-      const name = await reverseGeocode(lat, lng, ac.signal)
-      setDropoffAddressField(name.trim() || formatCoordsLabel(lat, lng))
-    } catch (e) {
-      if (e.name !== 'AbortError') setDropoffAddressField(formatCoordsLabel(lat, lng))
-    }
-  }
-
   const requestRide = async (event) => {
     event.preventDefault()
     const formEl = event.currentTarget
     if (!pickupPt || !dropoffPt) {
-      setMessage('Choose pickup and dropoff on the map (OpenStreetMap).')
+      setMessage('Search and select pickup and dropoff locations from the list.')
       return
     }
     const fd = new FormData(event.currentTarget)
@@ -394,9 +368,9 @@ export default function RiderAppPage() {
 
         {/* ===================== BOOK RIDE VIEW ===================== */}
         {view === 'book' && (
-          <div className="grid gap-6 animate-in fade-in slide-in-from-bottom-4 lg:grid-cols-[1fr_400px]">
+          <div className="grid min-w-0 gap-6 overflow-visible animate-in fade-in slide-in-from-bottom-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
             
-            <div className="space-y-6">
+            <div className="min-w-0 space-y-6">
               {/* Type Selection */}
               <div className="rounded-[2.5rem] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-[#d9e3ec] sm:p-8">
                 <h3 className="mb-6 text-xl font-black tracking-tight text-[#1c2731]">Select Ride Type</h3>
@@ -539,17 +513,17 @@ export default function RiderAppPage() {
             </div>
 
             {/* Form */}
-            <div className="rounded-[2.5rem] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-[#d9e3ec] sm:p-8">
+            <div className="min-w-0 overflow-visible rounded-[2.5rem] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-[#d9e3ec] sm:p-8">
               <h3 className="mb-6 text-xl font-black tracking-tight text-[#1c2731]">Route Details</h3>
 
               {farePreview ? (
                 <div className="mb-5 rounded-[1.25rem] bg-[#e8f4fd]/80 p-4 ring-1 ring-[#007AFF]/15">
                   <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#007AFF]">Fare preview (before promo & penalties)</p>
-                  <p className="mt-2 text-[13px] font-semibold text-[#607282]">
+                  <p className="mt-2 break-words text-[13px] font-semibold leading-relaxed text-[#607282]">
                     ~{farePreview.distanceKm.toFixed(1)} km route · Full-car estimate{' '}
                     <span className="font-mono text-[#1c2731]">৳{Math.round(farePreview.approxFullTrip).toLocaleString()}</span>
                   </p>
-                  <p className="mt-1 text-[15px] font-black text-[#1c2731]">
+                  <p className="mt-1 break-words text-[15px] font-black leading-snug text-[#1c2731]">
                     You pay ~{' '}
                     <span className="text-[#007AFF]">৳{Math.round(farePreview.approxYouPay).toLocaleString()}</span>
                     {bookingMode === 'seat_share' ? (
@@ -560,43 +534,60 @@ export default function RiderAppPage() {
                   </p>
                 </div>
               ) : (
-                <p className="mb-5 text-[13px] font-medium text-[#8a9aab]">Set pickup and dropoff on the map to see a fare preview.</p>
+                <p className="mb-5 text-[13px] font-medium text-[#8a9aab]">Search by name or street, then tap a result to lock coordinates for fare preview.</p>
               )}
 
-              <RideMapPicker pickup={pickupPt} dropoff={dropoffPt} onPickupChange={resolvePickupOnMap} onDropoffChange={resolveDropoffOnMap} className="mb-6" />
+              <div className="relative mb-6 flex min-w-0 flex-col gap-5 overflow-visible">
+                <div className="relative z-[120] min-w-0 overflow-visible">
+                <PlaceSearchField
+                  id="pickup-search"
+                  label="Pickup"
+                  icon={MapPin}
+                  accentClass="text-[#34c759]"
+                  value={pickupAddressField}
+                  onChangeValue={(v) => {
+                    setPickupAddressField(v)
+                    setPickupPt(null)
+                  }}
+                  onSelectPlace={({ lat, lng, label }) => {
+                    setPickupPt({ lat, lng })
+                    setPickupAddressField(label)
+                  }}
+                />
+                {pickupPt ? (
+                  <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#607282]">
+                    Coords: <span className="break-all font-mono text-[#1c2731]">{formatCoordsLabel(pickupPt.lat, pickupPt.lng)}</span>
+                  </p>
+                ) : null}
+                </div>
+
+                <div className="relative z-[110] min-w-0 overflow-visible">
+                <PlaceSearchField
+                  id="dropoff-search"
+                  label="Dropoff"
+                  icon={MapIcon}
+                  accentClass="text-[#ff3b30]"
+                  value={dropoffAddressField}
+                  onChangeValue={(v) => {
+                    setDropoffAddressField(v)
+                    setDropoffPt(null)
+                  }}
+                  onSelectPlace={({ lat, lng, label }) => {
+                    setDropoffPt({ lat, lng })
+                    setDropoffAddressField(label)
+                  }}
+                />
+                {dropoffPt ? (
+                  <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#607282]">
+                    Coords: <span className="break-all font-mono text-[#1c2731]">{formatCoordsLabel(dropoffPt.lat, dropoffPt.lng)}</span>
+                  </p>
+                ) : null}
+                </div>
+              </div>
+
+              <RideRoutePreviewMap pickup={pickupPt} dropoff={dropoffPt} className="relative z-0 mb-6" />
 
               <form onSubmit={requestRide} className="space-y-4">
-                <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#34c759]"><MapPin size={18} /></div>
-                  <input
-                    value={pickupAddressField}
-                    onChange={(e) => setPickupAddressField(e.target.value)}
-                    className="w-full rounded-[1.2rem] bg-[#f8fafc] py-4 pl-12 pr-4 text-[15px] font-bold text-[#1c2731] shadow-sm ring-1 ring-[#d9e3ec] transition-all placeholder:font-medium placeholder:text-[#a0b0c0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]"
-                    placeholder="Pickup address (from map or edit)"
-                    required
-                  />
-                </div>
-                {pickupPt ? (
-                  <p className="-mt-2 text-[12px] font-semibold text-[#607282]">
-                    Pickup coords: <span className="font-mono text-[#1c2731]">{formatCoordsLabel(pickupPt.lat, pickupPt.lng)}</span>
-                  </p>
-                ) : null}
-
-                <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#ff3b30]"><MapIcon size={18} /></div>
-                  <input
-                    value={dropoffAddressField}
-                    onChange={(e) => setDropoffAddressField(e.target.value)}
-                    className="w-full rounded-[1.2rem] bg-[#f8fafc] py-4 pl-12 pr-4 text-[15px] font-bold text-[#1c2731] shadow-sm ring-1 ring-[#d9e3ec] transition-all placeholder:font-medium placeholder:text-[#a0b0c0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]"
-                    placeholder="Dropoff address (from map or edit)"
-                    required
-                  />
-                </div>
-                {dropoffPt ? (
-                  <p className="-mt-2 text-[12px] font-semibold text-[#607282]">
-                    Dropoff coords: <span className="font-mono text-[#1c2731]">{formatCoordsLabel(dropoffPt.lat, dropoffPt.lng)}</span>
-                  </p>
-                ) : null}
 
                 <div className="pt-2">
                   <p className="mb-2 text-[11px] font-extrabold uppercase tracking-widest text-[#8a9aab]">Payment & Fare</p>

@@ -1,7 +1,8 @@
+import "dart:math" as math;
+
 import "package:flutter/material.dart";
 
 import "../core/app_theme.dart";
-import "admin/admin_shell_screen.dart";
 import "auth_screen.dart";
 
 class HomePortalScreen extends StatefulWidget {
@@ -11,301 +12,484 @@ class HomePortalScreen extends StatefulWidget {
   State<HomePortalScreen> createState() => _HomePortalScreenState();
 }
 
-class _HomePortalScreenState extends State<HomePortalScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _anim;
+class _HomePortalScreenState extends State<HomePortalScreen> with TickerProviderStateMixin {
+  late AnimationController _road;
+  late AnimationController _intro;
 
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..forward();
+    _road = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
+    _intro = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..forward();
   }
 
   @override
   void dispose() {
-    _anim.dispose();
+    _road.dispose();
+    _intro.dispose();
     super.dispose();
+  }
+
+  void _openAuth(AuthMode mode) {
+    Navigator.push(context, MaterialPageRoute<void>(builder: (_) => AuthScreen(mode: mode)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+      backgroundColor: const Color(0xFF050505),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: _FullBleedRoadScene(roadAnimation: _road),
+          ),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: FadeTransition(
+                opacity: CurvedAnimation(parent: _intro, curve: Curves.easeOut),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.white,
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text("T", style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 18)),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      "Transitely",
+                      style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.4),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: 112 + MediaQuery.paddingOf(context).bottom,
+            child: FadeTransition(
+              opacity: CurvedAnimation(parent: _intro, curve: const Interval(0.12, 1, curve: Curves.easeOut)),
+              child: SlideTransition(
+                position: Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
+                  CurvedAnimation(parent: _intro, curve: const Interval(0.12, 1, curve: Curves.easeOutCubic)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "Go anywhere.",
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.95),
+                        fontSize: 34,
+                        fontWeight: FontWeight.w800,
+                        height: 1.05,
+                        letterSpacing: -1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Same road, one direction — book a ride or drive when you are ready.",
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.58),
+                        fontSize: 15,
+                        height: 1.35,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _AccountBottomBar(
+              onRiderLogin: () => _openAuth(AuthMode.riderLogin),
+              onRiderRegister: () => _openAuth(AuthMode.riderRegister),
+              onDriverLogin: () => _openAuth(AuthMode.driverLogin),
+              onDriverRegister: () => _openAuth(AuthMode.driverRegister),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Rider / Driver access: log in and register open the existing [AuthScreen] flows.
+class _AccountBottomBar extends StatelessWidget {
+  final VoidCallback onRiderLogin;
+  final VoidCallback onRiderRegister;
+  final VoidCallback onDriverLogin;
+  final VoidCallback onDriverRegister;
+
+  const _AccountBottomBar({
+    required this.onRiderLogin,
+    required this.onRiderRegister,
+    required this.onDriverLogin,
+    required this.onDriverRegister,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.paddingOf(context).bottom;
+
+    return ClipRect(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.72),
+          border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.12))),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 24, offset: const Offset(0, -6))],
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + bottom),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _RoleColumn(
+                    label: "Rider",
+                    accent: kPrimary,
+                    onLogin: onRiderLogin,
+                    onRegister: onRiderRegister,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: SizedBox(
+                    height: 72,
+                    child: VerticalDivider(width: 1, thickness: 1, color: Colors.white.withValues(alpha: 0.14)),
+                  ),
+                ),
+                Expanded(
+                  child: _RoleColumn(
+                    label: "Driver",
+                    accent: kDriverGreen,
+                    onLogin: onDriverLogin,
+                    onRegister: onDriverRegister,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RoleColumn extends StatelessWidget {
+  final String label;
+  final Color accent;
+  final VoidCallback onLogin;
+  final VoidCallback onRegister;
+
+  const _RoleColumn({
+    required this.label,
+    required this.accent,
+    required this.onLogin,
+    required this.onRegister,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
           children: [
-            _HeaderBar(
-              title: "Transitely",
-              action: _GlowButton(
-                label: "Admin",
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminShellScreen())),
+            Icon(label == "Rider" ? Icons.person_rounded : Icons.directions_car_filled_rounded, color: accent, size: 20),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16, letterSpacing: -0.2),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton(
+                onPressed: onLogin,
+                style: FilledButton.styleFrom(
+                  backgroundColor: accent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  minimumSize: const Size(0, 40),
+                ),
+                child: const Text("Log in", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
               ),
             ),
-            const SizedBox(height: 20),
-            FadeTransition(opacity: CurvedAnimation(parent: _anim, curve: Curves.easeOut), child: const _HeroSection()),
-            const SizedBox(height: 16),
-            SlideTransition(
-              position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(CurvedAnimation(parent: _anim, curve: const Interval(0.2, 1, curve: Curves.easeOut))),
-              child: FadeTransition(opacity: CurvedAnimation(parent: _anim, curve: const Interval(0.2, 1)), child: const _StatsRow()),
-            ),
-            const SizedBox(height: 18),
-            SlideTransition(
-              position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(CurvedAnimation(parent: _anim, curve: const Interval(0.35, 1, curve: Curves.easeOut))),
-              child: FadeTransition(
-                opacity: CurvedAnimation(parent: _anim, curve: const Interval(0.35, 1)),
-                child: _PortalTile(
-                  title: "Rider Portal",
-                  subtitle: "Book rides with maps, seat-share fares, trip tracking & wallet.",
-                  icon: Icons.person_rounded,
-                  gradient: const [kPrimary, kPrimaryDark],
-                  primaryLabel: "Login",
-                  secondaryLabel: "Register",
-                  onPrimary: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthScreen(mode: AuthMode.riderLogin))),
-                  onSecondary: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthScreen(mode: AuthMode.riderRegister))),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: onRegister,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: BorderSide(color: accent.withValues(alpha: 0.65)),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  minimumSize: const Size(0, 40),
                 ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SlideTransition(
-              position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(CurvedAnimation(parent: _anim, curve: const Interval(0.5, 1, curve: Curves.easeOut))),
-              child: FadeTransition(
-                opacity: CurvedAnimation(parent: _anim, curve: const Interval(0.5, 1)),
-                child: _PortalTile(
-                  title: "Driver Portal",
-                  subtitle: "Go online, accept requests, trips, earnings & alerts.",
-                  icon: Icons.directions_car_filled_rounded,
-                  gradient: const [kDriverGreen, Color(0xFF2AA84B)],
-                  primaryLabel: "Login",
-                  secondaryLabel: "Register",
-                  onPrimary: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthScreen(mode: AuthMode.driverLogin))),
-                  onSecondary: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthScreen(mode: AuthMode.driverRegister))),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SlideTransition(
-              position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(CurvedAnimation(parent: _anim, curve: const Interval(0.6, 1, curve: Curves.easeOut))),
-              child: FadeTransition(
-                opacity: CurvedAnimation(parent: _anim, curve: const Interval(0.6, 1)),
-                child: _PortalTile(
-                  title: "Admin Portal",
-                  subtitle: "Fleet oversight, riders & drivers, rides and revenue — same as web (no sign-in).",
-                  icon: Icons.admin_panel_settings_rounded,
-                  gradient: const [Color(0xFF1C2731), Color(0xFF334155)],
-                  primaryLabel: "Open dashboard",
-                  onPrimary: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminShellScreen())),
-                ),
+                child: const Text("Register", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
               ),
             ),
           ],
         ),
-      ),
+      ],
     );
   }
 }
 
-class _GlowButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
+/// Full-screen top-down road: lane dividers scroll with forward travel; cars move in-lane in the same direction.
+class _FullBleedRoadScene extends StatelessWidget {
+  final Animation<double> roadAnimation;
 
-  const _GlowButton({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: kPrimary.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
-      ),
-      child: FilledButton(
-        onPressed: onTap,
-        style: FilledButton.styleFrom(
-          backgroundColor: kPrimary,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-        ),
-        child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
-      ),
-    );
-  }
-}
-
-class _HeaderBar extends StatelessWidget {
-  final String title;
-  final Widget action;
-
-  const _HeaderBar({required this.title, required this.action});
+  const _FullBleedRoadScene({required this.roadAnimation});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: kCardBorder),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: const LinearGradient(colors: [kPrimaryDark, kPrimary]),
-              boxShadow: [BoxShadow(color: kPrimary.withOpacity(0.25), blurRadius: 8)],
-            ),
-            alignment: Alignment.center,
-            child: const Text("T", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
-          ),
-          const SizedBox(width: 10),
-          Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-          const Spacer(),
-          action,
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroSection extends StatelessWidget {
-  const _HeroSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: const LinearGradient(colors: [kPrimary, kPrimaryDark], begin: Alignment.topLeft, end: Alignment.bottomRight),
-        boxShadow: [BoxShadow(color: kPrimary.withOpacity(0.25), blurRadius: 20, offset: const Offset(0, 8))],
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("Moving the\nFuture", style: TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w900, height: 1.05, letterSpacing: -0.5)),
-          SizedBox(height: 10),
-          Text("Riders, drivers & admins — same Transitely design language on mobile.", style: TextStyle(color: Color(0xFFD8EAFF), fontSize: 14, fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatsRow extends StatelessWidget {
-  const _StatsRow();
-
-  @override
-  Widget build(BuildContext context) {
-    const items = [("Live", "Trips", Icons.route_rounded), ("Fleet", "Drivers", Icons.people_alt_rounded), ("Zones", "Map", Icons.location_on_rounded)];
-    return Row(
-      children: items
-          .map((it) => Expanded(
-                child: Container(
-                  margin: EdgeInsets.only(right: it == items.last ? 0 : 10),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: kCardBorder),
-                  ),
-                  child: Column(children: [
-                    Icon(it.$3, color: kPrimary, size: 20),
-                    const SizedBox(height: 6),
-                    Text(it.$1, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 2),
-                    Text(it.$2, style: const TextStyle(color: kMuted, fontWeight: FontWeight.w600, fontSize: 12)),
-                  ]),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final h = constraints.maxHeight;
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF121212), Color(0xFF030303)],
                 ),
-              ))
-          .toList(),
-    );
-  }
-}
-
-class _PortalTile extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final List<Color> gradient;
-  final String primaryLabel;
-  final String? secondaryLabel;
-  final VoidCallback onPrimary;
-  final VoidCallback? onSecondary;
-
-  const _PortalTile({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.gradient,
-    required this.primaryLabel,
-    this.secondaryLabel,
-    required this.onPrimary,
-    this.onSecondary,
-  }) : assert((secondaryLabel == null) == (onSecondary == null), "secondaryLabel and onSecondary must both be set or both null");
-
-  @override
-  Widget build(BuildContext context) {
-    final primaryBtn = Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        gradient: LinearGradient(colors: gradient),
-        boxShadow: [BoxShadow(color: gradient.first.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
-      child: FilledButton(
-        onPressed: onPrimary,
-        style: FilledButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-        child: Text(primaryLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
-      ),
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: kCardBorder)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              gradient: LinearGradient(colors: gradient),
-              boxShadow: [BoxShadow(color: gradient.first.withOpacity(0.35), blurRadius: 10)],
-            ),
-            alignment: Alignment.center,
-            child: Icon(icon, color: Colors.white, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-        ]),
-        const SizedBox(height: 10),
-        Text(subtitle, style: const TextStyle(color: kMuted, fontSize: 13)),
-        const SizedBox(height: 16),
-        if (secondaryLabel != null && onSecondary != null)
-          Row(children: [
-            Expanded(child: primaryBtn),
-            const SizedBox(width: 10),
-            Expanded(
-              child: OutlinedButton(
-                onPressed: onSecondary,
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: gradient.first.withOpacity(0.4)),
-                  foregroundColor: gradient.first,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: Text(secondaryLabel!, style: const TextStyle(fontWeight: FontWeight.w700)),
               ),
             ),
-          ])
-        else
-          SizedBox(width: double.infinity, child: primaryBtn),
-      ]),
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: roadAnimation,
+                builder: (context, _) {
+                  return CustomPaint(
+                    painter: _RoadSurfacePainter(progress: roadAnimation.value, width: w, height: h),
+                  );
+                },
+              ),
+            ),
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: roadAnimation,
+                builder: (context, _) {
+                  return _VerticalTrafficLayer(progress: roadAnimation.value, width: w, height: h);
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
+}
+
+class _RoadSurfacePainter extends CustomPainter {
+  final double progress;
+  final double width;
+  final double height;
+
+  _RoadSurfacePainter({required this.progress, required this.width, required this.height});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final asphalt = Paint()..color = const Color(0xFF1A1A1A);
+    canvas.drawRect(rect, asphalt);
+
+    final laneFrac = <double>[0.18, 0.39, 0.61, 0.82];
+    final edge = Paint()
+      ..color = const Color(0xFF2C2C2C)
+      ..strokeWidth = 5
+      ..style = PaintingStyle.stroke;
+    for (final f in [laneFrac.first, laneFrac.last]) {
+      final x = width * f;
+      canvas.drawLine(Offset(x, 0), Offset(x, height), edge);
+    }
+
+    final dashPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.2)
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+
+    const dashLen = 14.0;
+    const gap = 18.0;
+    const cycle = dashLen + gap;
+    final scroll = (progress * cycle * 25) % cycle;
+
+    for (var li = 1; li < laneFrac.length - 1; li++) {
+      final x = width * laneFrac[li];
+      for (double y = -scroll; y < height + cycle; y += cycle) {
+        canvas.drawLine(Offset(x, y), Offset(x, y + dashLen), dashPaint);
+      }
+    }
+
+    final vignette = Paint()
+      ..shader = RadialGradient(
+        colors: [Colors.transparent, Colors.black.withValues(alpha: 0.35)],
+        stops: const [0.45, 1.0],
+        center: Alignment.center,
+        radius: 0.95,
+      ).createShader(rect);
+    canvas.drawRect(rect, vignette);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RoadSurfacePainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.width != width || oldDelegate.height != height;
+}
+
+class _VerticalTrafficLayer extends StatelessWidget {
+  final double progress;
+  final double width;
+  final double height;
+
+  const _VerticalTrafficLayer({required this.progress, required this.width, required this.height});
+
+  /// Lane centers between painted dividers (matches [_RoadSurfacePainter] edges).
+  static double _laneCenterX(int laneIndex, double w) {
+    const dividers = [0.18, 0.39, 0.61, 0.82];
+    final left = dividers[laneIndex];
+    final right = dividers[laneIndex + 1];
+    return w * (left + right) / 2;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        _CarDownLane(
+          progress: progress,
+          height: height,
+          laneX: _laneCenterX(0, width),
+          speed: 0.95,
+          phase: 0.0,
+          scale: 1.0,
+          color: Colors.white,
+        ),
+        _CarDownLane(
+          progress: progress,
+          height: height,
+          laneX: _laneCenterX(1, width),
+          speed: 1.12,
+          phase: 0.37,
+          scale: 0.95,
+          color: kPrimary,
+        ),
+        _CarDownLane(
+          progress: progress,
+          height: height,
+          laneX: _laneCenterX(2, width),
+          speed: 0.82,
+          phase: 0.71,
+          scale: 0.88,
+          color: const Color(0xFFFFD60A),
+        ),
+      ],
+    );
+  }
+}
+
+class _CarDownLane extends StatelessWidget {
+  final double progress;
+  final double height;
+  final double laneX;
+  final double speed;
+  final double phase;
+  final double scale;
+  final Color color;
+
+  const _CarDownLane({
+    required this.progress,
+    required this.height,
+    required this.laneX,
+    required this.speed,
+    required this.phase,
+    required this.scale,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = ((progress * speed + phase) % 1.0);
+    final travel = height + 100;
+    final top = -80 + travel * t;
+    final sway = math.sin(t * math.pi * 2) * 1.2;
+
+    return Positioned(
+      left: laneX - 13 + sway,
+      top: top,
+      child: Transform.scale(
+        scale: scale,
+        child: Transform.rotate(
+          angle: math.pi / 2,
+          alignment: Alignment.center,
+          child: CustomPaint(
+            size: const Size(52, 26),
+            painter: _CarSilhouettePainter(color: color),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CarSilhouettePainter extends CustomPainter {
+  final Color color;
+
+  _CarSilhouettePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final body = RRect.fromRectAndRadius(Rect.fromLTWH(4, 8, size.width - 8, 12), const Radius.circular(4));
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    canvas.drawRRect(body, paint);
+
+    final cabin = RRect.fromRectAndRadius(Rect.fromLTWH(14, 4, size.width - 28, 12), const Radius.circular(3));
+    canvas.drawRRect(cabin, paint..color = color.withValues(alpha: 0.92));
+
+    final window = Paint()..color = const Color(0xFF1A3A5C).withValues(alpha: 0.85);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(18, 6, size.width - 36, 7), const Radius.circular(2)),
+      window,
+    );
+
+    final wheel = Paint()..color = const Color(0xFF111111);
+    canvas.drawCircle(Offset(14, size.height - 2), 4.5, wheel);
+    canvas.drawCircle(Offset(size.width - 14, size.height - 2), 4.5, wheel);
+
+    final head = Paint()
+      ..color = Colors.white.withValues(alpha: 0.35)
+      ..strokeWidth = 1.2;
+    canvas.drawLine(Offset(size.width - 2, size.height * 0.45), Offset(size.width + 5, size.height * 0.45), head);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CarSilhouettePainter oldDelegate) => oldDelegate.color != color;
 }

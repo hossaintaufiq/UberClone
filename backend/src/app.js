@@ -34,6 +34,7 @@ app.use("/api/drivers", require("./routes/drivers"));
 app.use("/api/user", require("./routes/riders"));
 app.use("/api/driver", require("./routes/drivers"));
 app.use("/api/rides", require("./routes/rides"));
+app.use("/api/geocode", require("./routes/geocode"));
 app.use("/api/complaints", require("./routes/complaints"));
 app.use("/api/admin", require("./routes/admin"));
 
