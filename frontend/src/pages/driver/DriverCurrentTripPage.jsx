@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import DriverLayout from '../../components/DriverLayout'
 import { DRIVER_TOKEN_KEY } from '../../constants/auth'
 import { apiRequest } from '../../services/api'
-import { onRealtimeRefresh } from '../../services/realtime'
+import { emitDriverLocation, joinRideRoom, onRealtimeRefresh } from '../../services/realtime'
 import ConfirmToast from '../../components/ConfirmToast'
-import { Map, AlertTriangle, MessageCircle, CheckCircle, Check, ChevronUp, ChevronDown, MapPin, Navigation, User, Send } from 'lucide-react'
+import { LiveRideMap } from '../../components/Maps'
+import { AlertTriangle, MessageCircle, CheckCircle, ChevronUp, ChevronDown, MapPin, Navigation, User, Send } from 'lucide-react'
 
 export default function DriverCurrentTripPage() {
   const navigate = useNavigate()
@@ -22,6 +23,8 @@ export default function DriverCurrentTripPage() {
   const [confirmToast, setConfirmToast] = useState('')
   const [busy, setBusy] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [driverPoint, setDriverPoint] = useState(null)
+  const watchIdRef = useRef(null)
 
   useEffect(() => {
     if (!localStorage.getItem(DRIVER_TOKEN_KEY)) navigate('/driver/login')
@@ -37,6 +40,49 @@ export default function DriverCurrentTripPage() {
       offRealtime()
     }
   }, [navigate])
+
+  useEffect(() => {
+    const rideId = String(trip?._id || '')
+    if (!rideId) return
+    joinRideRoom(rideId)
+  }, [trip?._id])
+
+  useEffect(() => {
+    const rideId = String(trip?._id || '')
+    const driverId = String(trip?.driverId || '')
+    const status = String(trip?.status || '').toLowerCase()
+    if (!rideId || !['accepted', 'arrived', 'started', 'ongoing'].includes(status)) return
+    if (!navigator.geolocation) return
+
+    let lastSyncTs = 0
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const lat = Number(pos.coords.latitude)
+        const lng = Number(pos.coords.longitude)
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+        setDriverPoint({ lat, lng })
+        emitDriverLocation({ rideId, lat, lng, driverId })
+
+        const now = Date.now()
+        if (now - lastSyncTs > 12000) {
+          lastSyncTs = now
+          apiRequest('/api/drivers/location', {
+            method: 'PATCH',
+            tokenKey: DRIVER_TOKEN_KEY,
+            body: { lat, lng },
+          }).catch(() => {})
+        }
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+    )
+    return () => {
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
+    }
+  }, [trip?._id, trip?.driverId, trip?.status])
 
   const loadActiveTrip = async () => {
     try {
@@ -98,6 +144,21 @@ export default function DriverCurrentTripPage() {
   const statusLabels = { accepted: 'Navigate to Pickup', arrived: 'Start Ride', started: 'Complete Ride', ongoing: 'Complete Ride', completed: 'Ride Completed' }
   const currentStatus = String(trip?.status || '').toLowerCase()
   const nextStatus = ['accepted', 'arrived', 'started', 'ongoing'].includes(currentStatus)
+  const pickupPoint = useMemo(() => {
+    const lat = Number(trip?.pickupLat)
+    const lng = Number(trip?.pickupLng)
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null
+  }, [trip?.pickupLat, trip?.pickupLng])
+  const dropoffPoint = useMemo(() => {
+    const lat = Number(trip?.dropoffLat)
+    const lng = Number(trip?.dropoffLng)
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null
+  }, [trip?.dropoffLat, trip?.dropoffLng])
+  const driverLivePoint = driverPoint || (
+    Number.isFinite(Number(trip?.driverId?.location?.lat)) && Number.isFinite(Number(trip?.driverId?.location?.lng))
+      ? { lat: Number(trip.driverId.location.lat), lng: Number(trip.driverId.location.lng) }
+      : null
+  )
 
   return (
     <DriverLayout title="Active Trip Tracker">
@@ -143,23 +204,8 @@ export default function DriverCurrentTripPage() {
           <div className="flex h-full flex-col gap-6">
             
             {/* Immersive Map Container */}
-            <div className="group relative flex min-h-[400px] flex-1 items-center justify-center overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#e8f4fd] to-blue-50/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-white/60 transition-all hover:shadow-[0_12px_40px_rgba(0,122,255,0.08)]">
-              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 mix-blend-overlay"></div>
-              <div className="absolute h-full w-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-200/20 via-transparent to-transparent"></div>
-              
-              {/* Pulsing Map Pin Animation */}
-              <div className="relative flex flex-col items-center">
-                <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-white/80 shadow-2xl backdrop-blur-xl">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#007AFF] opacity-20"></span>
-                  <Map size={48} className="text-[#007AFF] drop-shadow-md" strokeWidth={1.5} />
-                </div>
-                <div className="mt-6 rounded-full bg-white/60 px-6 py-2.5 shadow-sm ring-1 ring-white/80 backdrop-blur-md">
-                  <p className="text-[14px] font-bold text-[#1c2731]">Live GPS Tracking Active</p>
-                </div>
-                <p className="mt-3 text-[12px] font-semibold text-[#8a9aab]">(Leaflet/Google Maps Integration Area)</p>
-              </div>
-
-              {/* Status Overlay on Map */}
+            <div className="group relative min-h-[400px] flex-1 overflow-hidden rounded-[2.5rem] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-white/60 transition-all hover:shadow-[0_12px_40px_rgba(0,122,255,0.08)]">
+              <LiveRideMap pickup={pickupPoint} dropoff={dropoffPoint} driver={driverLivePoint} />
               <div className="absolute left-6 top-6 flex items-center gap-3 rounded-full bg-white/90 px-5 py-2.5 shadow-lg ring-1 ring-black/5 backdrop-blur-xl">
                 <div className="relative flex h-3 w-3">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#34c759] opacity-75"></span>

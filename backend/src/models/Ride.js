@@ -38,10 +38,19 @@ const rideSchema = new mongoose.Schema(
       enum: ["requested", "accepted", "arrived", "started", "ongoing", "completed", "cancelled"],
       default: "requested",
     },
+    /** Rider confirms/acknowledges a live incoming ride from dashboard. */
+    riderAccepted: { type: Boolean, default: false },
+    riderAcceptedAt: Date,
+    /** Drivers who already rejected this request (hide from their incoming list). */
+    rejectedDriverIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     cancelReason: String,
     cancelledBy: { type: String, enum: ["user", "driver", "system", ""], default: "" },
     riderRating: Number,
+    /** Text review from rider (after trip completed). */
+    riderFeedback: { type: String, default: "", maxlength: 2000 },
     driverRating: Number,
+    tripStartedAt: Date,
+    tripCompletedAt: Date,
     chatMessages: [
       {
         senderRole: { type: String, enum: ["user", "driver"], required: true },

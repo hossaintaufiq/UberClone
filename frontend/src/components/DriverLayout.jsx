@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { DRIVER_TOKEN_KEY } from '../constants/auth'
 
-import { Home, MapPin, Car, ClipboardList, Banknote, User, Menu } from 'lucide-react'
+import { Home, MapPin, Car, ClipboardList, Banknote, User, Menu, MessageSquareText } from 'lucide-react'
 import DriverAssistant from './DriverAssistant'
 
 const navItems = [
@@ -10,6 +10,7 @@ const navItems = [
   { path: '/driver/incoming', label: 'Incoming Rides', icon: MapPin },
   { path: '/driver/trip', label: 'Current Trip', icon: Car },
   { path: '/driver/history', label: 'Ride History', icon: ClipboardList },
+  { path: '/driver/feedback', label: 'Rider feedback', icon: MessageSquareText },
   { path: '/driver/payments', label: 'Earnings', icon: Banknote },
   { path: '/driver/profile', label: 'Profile', icon: User },
 ]

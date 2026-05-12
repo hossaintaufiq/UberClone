@@ -8,6 +8,7 @@ import "../../core/auth_prefs.dart";
 import "../../services/driver_service.dart";
 import "../../widgets/nav_assistant_sheet.dart";
 import "../home_portal_screen.dart";
+import "driver_feedback_screen.dart";
 
 bool _tripLive(dynamic r) {
   final s = "${r["status"] ?? ""}".toLowerCase();
@@ -569,6 +570,17 @@ class _DriverMoreState extends State<_DriverMore> {
                 ],
               ),
             ),
+          ),
+          const SizedBox(height: 14),
+          ListTile(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: kCardBorder)),
+            tileColor: Colors.white,
+            leading: const Icon(Icons.rate_review_rounded, color: kDriverGreen),
+            title: const Text("Rider feedback", style: TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: const Text("Star ratings & comments"),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () =>
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const DriverFeedbackScreen())),
           ),
           const SizedBox(height: 18),
           const Text("Alerts", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),

@@ -7,6 +7,7 @@ var auth    = require('../middleware/auth');
 router.post('/',                  auth.protect, auth.authorize('user','rider'),    ride.requestRide);
 router.get('/:id',                auth.protect, auth.authorize('user','rider','driver','super_admin','moderator','support'), ride.getRide);
 router.patch('/:id/accept',       auth.protect, auth.authorize('driver'),          ride.acceptRide);
+router.patch('/:id/rider-accept', auth.protect, auth.authorize('user','rider'),    ride.riderAcceptRide);
 router.patch('/:id/reject',       auth.protect, auth.authorize('driver'),          ride.rejectRide);
 router.patch('/:id/arrived',      auth.protect, auth.authorize('driver'),          ride.driverArrived);
 router.patch('/:id/start',        auth.protect, auth.authorize('driver'),          ride.startRide);

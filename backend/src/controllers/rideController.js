@@ -3,7 +3,7 @@ const Payment = require("../models/Payment");
 const Ride = require("../models/Ride");
 const User = require("../models/User");
 const mongoose = require("mongoose");
-const { calculateFare, findNearestDriver, haversineKm } = require("../services/rideService");
+const { calculateFare, findNearestDriver, haversineKm, countEligibleDriversAtPickup } = require("../services/rideService");
 
 const emitRide = (req, rideId, event, payload) => {
   const io = req.app.get("io");
@@ -79,7 +79,26 @@ exports.requestRide = async (req, res) => {
     if (![pricing.estimatedFare, pricing.fare, pricing.commissionAmount, pricing.driverEarning, pricing.tripTotalAfterPromo].every(Number.isFinite)) {
       return res.status(400).json({ success: false, message: "Ride fare could not be calculated. Please review trip inputs." });
     }
-    const assigned = await findNearestDriver({ pickupLat, pickupLng });
+    const selectedDriverId = String(req.body.selected_driver_id || "").trim();
+    let assigned = null;
+    let selectedDriverApplied = false;
+    if (mongoose.Types.ObjectId.isValid(selectedDriverId)) {
+      const selected = await User.findOne({
+        _id: selectedDriverId,
+        role: "driver",
+        isActive: true,
+        isOnline: true,
+        approved: true,
+      }).select("_id location");
+      if (selected && selected.location && typeof selected.location.lat === "number" && typeof selected.location.lng === "number") {
+        assigned = selected;
+        selectedDriverApplied = true;
+      }
+    }
+    if (!assigned) {
+      assigned = await findNearestDriver({ pickupLat, pickupLng });
+    }
+    const eligibleDriversNearPickup = await countEligibleDriversAtPickup({ pickupLat, pickupLng });
     const pickupAddress = String(req.body.pickup_address || "").trim();
     const dropoffAddress = String(req.body.dropoff_address || "").trim();
     if (!pickupAddress || !dropoffAddress) {
@@ -115,7 +134,17 @@ exports.requestRide = async (req, res) => {
       await Notification.create({ userId: assigned._id, title: "New ride request", message: `New ${ride.rideType} ride request nearby.` });
     }
     emitSystemRefresh(req, { type: "ride:requested", rideId: String(ride._id) });
-    res.status(201).json({ success: true, message: "Ride requested", data: ride });
+    res.status(201).json({
+      success: true,
+      message: "Ride requested",
+      data: ride,
+      matching: {
+        eligibleDriversNearPickup,
+        preAssignedToNearestDriver: Boolean(assigned?._id) && !selectedDriverApplied,
+        selectedDriverId: selectedDriverId || null,
+        selectedDriverApplied,
+      },
+    });
   } catch (error) {
     console.error("requestRide", error);
     if (error.name === "CastError") {
@@ -140,22 +169,65 @@ exports.getRide = async (req, res) => {
 exports.acceptRide = async (req, res) => {
   const driver = await User.findById(req.user.id);
   if (!driver || !driver.isActive) return res.status(403).json({ success: false, message: "Driver account is inactive." });
-  const ride = await Ride.findByIdAndUpdate(req.params.id, { driverId: req.user.id, status: "accepted" }, { returnDocument: "after" });
+  const ride = await Ride.findById(req.params.id);
   if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
+  if (String(ride.status || "").toLowerCase() !== "requested") {
+    return res.status(400).json({ success: false, message: "This ride is no longer available to accept." });
+  }
+  if ((ride.rejectedDriverIds || []).some((id) => String(id) === String(req.user.id))) {
+    return res.status(400).json({ success: false, message: "You already rejected this ride." });
+  }
+  ride.driverId = req.user.id;
+  ride.status = "accepted";
+  await ride.save();
   emitRide(req, req.params.id, "ride:status", { status: "accepted" });
   await Notification.create({ userId: ride.riderId, title: "Ride accepted", message: "Driver accepted your request." });
   emitSystemRefresh(req, { type: "ride:accepted", rideId: String(ride._id) });
   res.json({ success: true, message: "Ride accepted", data: ride });
 };
 
+exports.riderAcceptRide = async (req, res) => {
+  const ride = await Ride.findById(req.params.id);
+  if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
+  if (String(ride.riderId) !== String(req.user.id)) {
+    return res.status(403).json({ success: false, message: "This trip does not belong to your account." });
+  }
+  const status = String(ride.status || "").toLowerCase();
+  if (!["requested", "accepted", "arrived", "started", "ongoing"].includes(status)) {
+    return res.status(400).json({ success: false, message: "Only live rides can be accepted." });
+  }
+  ride.riderAccepted = true;
+  ride.riderAcceptedAt = new Date();
+  await ride.save();
+  if (ride.driverId) {
+    await Notification.create({
+      userId: ride.driverId,
+      title: "Rider confirmed",
+      message: "Rider confirmed this incoming trip from dashboard.",
+    });
+  }
+  emitSystemRefresh(req, { type: "ride:riderAccepted", rideId: String(ride._id) });
+  res.json({ success: true, message: "Ride accepted by rider", data: ride });
+};
+
 exports.rejectRide = async (req, res) => {
   const ride = await Ride.findById(req.params.id);
   if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
+  if (String(ride.status || "").toLowerCase() !== "requested") {
+    return res.status(400).json({ success: false, message: "Only requested rides can be rejected." });
+  }
   const driver = await User.findById(req.user.id);
   if (driver) {
     driver.pendingPenalty = Number(driver.pendingPenalty || 0) + 30;
     await driver.save();
   }
+  const rejected = new Set((ride.rejectedDriverIds || []).map((id) => String(id)));
+  rejected.add(String(req.user.id));
+  ride.rejectedDriverIds = [...rejected];
+  if (String(ride.driverId || "") === String(req.user.id)) {
+    ride.driverId = null;
+  }
+  await ride.save();
   await Notification.create({ userId: ride.riderId, title: "Ride rejected", message: "Driver rejected your request. Reassigning nearby driver." });
   emitSystemRefresh(req, { type: "ride:rejected", rideId: String(ride._id) });
   res.json({ success: true, message: "Ride rejected. 30 BDT penalty applied." });
@@ -171,7 +243,11 @@ exports.driverArrived = async (req, res) => {
 };
 
 exports.startRide = async (req, res) => {
-  const ride = await Ride.findByIdAndUpdate(req.params.id, { status: "ongoing" }, { returnDocument: "after" });
+  const ride = await Ride.findByIdAndUpdate(
+    req.params.id,
+    { status: "ongoing", tripStartedAt: new Date() },
+    { returnDocument: "after" }
+  );
   if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
   emitRide(req, req.params.id, "ride:status", { status: "ongoing" });
   await Notification.create({ userId: ride.riderId, title: "Ride started", message: "Your trip is now in progress." });
@@ -180,7 +256,11 @@ exports.startRide = async (req, res) => {
 };
 
 exports.completeRide = async (req, res) => {
-  const ride = await Ride.findByIdAndUpdate(req.params.id, { status: "completed" }, { returnDocument: "after" });
+  const ride = await Ride.findByIdAndUpdate(
+    req.params.id,
+    { status: "completed", tripCompletedAt: new Date() },
+    { returnDocument: "after" }
+  );
   if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
   const rider = await User.findById(ride.riderId);
   const driver = await User.findById(ride.driverId);
@@ -201,19 +281,12 @@ exports.completeRide = async (req, res) => {
       await ride.save();
     }
   }
-  // Ensure completion always contributes to admin revenue metrics.
-  const existingPaid = await Payment.findOne({ rideId: ride._id, status: "paid" });
-  if (!existingPaid) {
-    await Payment.create({
-      rideId: ride._id,
-      riderId: ride.riderId,
-      amount: Number(ride.fare || 0),
-      method: "cash",
-      status: "paid",
-    });
-  }
   emitRide(req, req.params.id, "ride:status", { status: "completed" });
-  await Notification.create({ userId: ride.riderId, title: "Ride completed", message: "Trip finished. Please rate your driver." });
+  await Notification.create({
+    userId: ride.riderId,
+    title: "Ride completed",
+    message: "Trip finished. Pay with Cash, bKash, Nagad, or Card from Trip History, then rate your driver.",
+  });
   if (ride.driverId) {
     await Notification.create({ userId: ride.driverId, title: "Ride completed", message: "Trip completed successfully. Earnings updated." });
   }
@@ -239,10 +312,52 @@ exports.cancelRide = async (req, res) => {
   res.json({ success: true, message: "Ride cancelled", data: ride });
 };
 
+async function refreshDriverAverageRating(driverId) {
+  if (!driverId || !mongoose.Types.ObjectId.isValid(String(driverId))) return;
+  const agg = await Ride.aggregate([
+    {
+      $match: {
+        driverId: new mongoose.Types.ObjectId(String(driverId)),
+        status: "completed",
+        riderRating: { $gte: 1, $lte: 5 },
+      },
+    },
+    { $group: { _id: null, avg: { $avg: "$riderRating" } } },
+  ]);
+  const avg = agg[0]?.avg;
+  if (avg != null) {
+    await User.findByIdAndUpdate(driverId, { rating: Math.round(Number(avg) * 100) / 100 });
+  }
+}
+
 exports.rateDriver = async (req, res) => {
-  await Ride.findByIdAndUpdate(req.params.id, { riderRating: Number(req.body.rating || 0) });
-  emitSystemRefresh(req, { type: "ride:riderRating", rideId: String(req.params.id) });
-  res.json({ success: true, message: "Driver rated successfully" });
+  try {
+    const ride = await Ride.findById(req.params.id);
+    if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
+    if (String(ride.riderId) !== String(req.user.id)) {
+      return res.status(403).json({ success: false, message: "Only the rider can review this trip." });
+    }
+    if (String(ride.status || "").toLowerCase() !== "completed") {
+      return res.status(400).json({ success: false, message: "You can review after the trip is completed." });
+    }
+    const rating = Number(req.body.rating);
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+      return res.status(400).json({ success: false, message: "Rating must be between 1 and 5." });
+    }
+    const update = { riderRating: rating };
+    if (req.body.comment != null || req.body.feedback != null) {
+      update.riderFeedback = String(req.body.comment ?? req.body.feedback ?? "")
+        .trim()
+        .slice(0, 2000);
+    }
+    await Ride.findByIdAndUpdate(req.params.id, update);
+    if (ride.driverId) await refreshDriverAverageRating(ride.driverId);
+    emitSystemRefresh(req, { type: "ride:riderRating", rideId: String(req.params.id) });
+    res.json({ success: true, message: "Feedback saved" });
+  } catch (e) {
+    console.error("rateDriver", e);
+    res.status(500).json({ success: false, message: e.message || "Could not save review." });
+  }
 };
 
 exports.rateRider = async (req, res) => {
@@ -251,26 +366,43 @@ exports.rateRider = async (req, res) => {
   res.json({ success: true, message: "Rider rated successfully" });
 };
 
+const PAY_METHODS = new Set(["cash", "bkash", "nagad", "card"]);
+
 exports.processPayment = async (req, res) => {
-  const ride = await Ride.findById(req.params.id);
-  if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
-  const existingPaid = await Payment.findOne({ rideId: ride._id, status: "paid" });
-  if (existingPaid) {
-    return res.json({ success: true, message: "Payment already processed", data: existingPaid });
+  try {
+    const ride = await Ride.findById(req.params.id);
+    if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
+    if (String(ride.riderId) !== String(req.user.id)) {
+      return res.status(403).json({ success: false, message: "Only the rider can pay for this trip." });
+    }
+    if (String(ride.status || "").toLowerCase() !== "completed") {
+      return res.status(400).json({ success: false, message: "Pay after your trip is completed." });
+    }
+    const existingPaid = await Payment.findOne({ rideId: ride._id, status: "paid" });
+    if (existingPaid) {
+      return res.json({ success: true, message: "Payment already recorded", data: existingPaid });
+    }
+    const raw = String(req.body.method || "cash")
+      .trim()
+      .toLowerCase();
+    const method = PAY_METHODS.has(raw) ? raw : "cash";
+    const payment = await Payment.create({
+      rideId: ride._id,
+      riderId: ride.riderId,
+      amount: Number(req.body.amount || ride.fare || 0),
+      method,
+      status: "paid",
+    });
+    emitSystemRefresh(req, { type: "payment:paid", rideId: String(ride._id) });
+    res.json({ success: true, message: "Payment recorded successfully", data: payment });
+  } catch (e) {
+    console.error("processPayment", e);
+    res.status(500).json({ success: false, message: e.message || "Payment failed." });
   }
-  const payment = await Payment.create({
-    rideId: ride._id,
-    riderId: ride.riderId,
-    amount: Number(req.body.amount || ride.fare || 0),
-    method: req.body.method || "card",
-    status: "paid",
-  });
-  emitSystemRefresh(req, { type: "payment:paid", rideId: String(ride._id) });
-  res.json({ success: true, message: "Payment successful", data: payment });
 };
 
 exports.trackRide = async (req, res) => {
-  const ride = await Ride.findById(req.params.id).populate("driverId", "name phone location");
+  const ride = await Ride.findById(req.params.id).populate("driverId", "name phone location profilePhoto rating");
   if (!ride) return res.status(404).json({ success: false, message: "Ride not found." });
   res.json({ success: true, data: ride });
 };

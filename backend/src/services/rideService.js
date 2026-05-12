@@ -93,4 +93,43 @@ async function findNearestDriver({ pickupLat, pickupLng }) {
   return winner;
 }
 
-module.exports = { getConfig, haversineKm, calculateFare, findNearestDriver };
+/** Same pool as findNearestDriver — drivers who can receive the request (valid last-known location). */
+async function countEligibleDriversAtPickup({ pickupLat, pickupLng }) {
+  const drivers = await User.find({ role: { $in: ["driver"] }, isActive: true, isOnline: true, approved: true }).select("_id location");
+  let n = 0;
+  drivers.forEach((driver) => {
+    if (!driver.location || typeof driver.location.lat !== "number" || typeof driver.location.lng !== "number") return;
+    n += 1;
+  });
+  return n;
+}
+
+async function listEligibleDriversAtPickup({ pickupLat, pickupLng, limit = 30 }) {
+  const drivers = await User.find({ role: "driver", isActive: true, isOnline: true, approved: true })
+    .select("_id name phone rating profilePhoto location")
+    .lean();
+  const rows = [];
+  drivers.forEach((driver) => {
+    const hasGps = Boolean(driver.location && typeof driver.location.lat === "number" && typeof driver.location.lng === "number");
+    const distanceKm = hasGps ? haversineKm(pickupLat, pickupLng, driver.location.lat, driver.location.lng) : null;
+    rows.push({
+      _id: driver._id,
+      name: driver.name || "Driver",
+      phone: driver.phone || "",
+      rating: Number(driver.rating || 0),
+      profilePhoto: driver.profilePhoto || "",
+      distanceKm: distanceKm == null ? null : Number(distanceKm.toFixed(2)),
+      hasGps,
+      location: hasGps ? driver.location : null,
+    });
+  });
+  rows.sort((a, b) => {
+    if (a.distanceKm == null && b.distanceKm == null) return Number(b.rating || 0) - Number(a.rating || 0);
+    if (a.distanceKm == null) return 1;
+    if (b.distanceKm == null) return -1;
+    return a.distanceKm - b.distanceKm;
+  });
+  return rows.slice(0, Math.max(1, Number(limit) || 30));
+}
+
+module.exports = { getConfig, haversineKm, calculateFare, findNearestDriver, countEligibleDriversAtPickup, listEligibleDriversAtPickup };

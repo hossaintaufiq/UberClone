@@ -3,6 +3,9 @@ import "dart:async";
 import "package:flutter/material.dart";
 import "../../core/app_theme.dart";
 import "../../services/rider_service.dart";
+import "../../utils/ride_status.dart";
+
+import "rider_trip_summary_sheet.dart";
 
 String _pu(dynamic r) => "${r["pickupAddress"] ?? r["pickup_address"] ?? ""}";
 String _do(dynamic r) => "${r["dropoffAddress"] ?? r["dropoff_address"] ?? ""}";
@@ -93,11 +96,27 @@ class _RiderHomeTabState extends State<RiderHomeTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Ride in progress", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    Text(riderFacingRideUi("${active["status"]}").headline, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: kPrimary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        riderFacingRideUi("${active["status"]}").badge,
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: kPrimary, letterSpacing: 0.3),
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Text("${_pu(active)} → ${_do(active)}", style: const TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 6),
-                    Text("Status: ${_st(active)}", style: const TextStyle(color: kMuted, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    Text(riderFacingRideUi("${active["status"]}").subtitle, style: const TextStyle(color: kMuted, fontSize: 13, height: 1.35)),
+                    if (_st(active) == "requested") ...[
+                      const SizedBox(height: 10),
+                      Text(kDriverMatchingExplainer, style: TextStyle(color: kMuted.withValues(alpha: 0.95), fontSize: 12, height: 1.35)),
+                    ],
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -227,6 +246,7 @@ class _RiderActiveTabState extends State<RiderActiveTab> {
           else
             ...active.map((r) {
               final id = "${r["_id"] ?? r["id"]}";
+              final ui = riderFacingRideUi("${r["status"]}");
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -235,10 +255,22 @@ class _RiderActiveTabState extends State<RiderActiveTab> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_st(r).toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: kPrimary)),
+                      Text(ui.headline, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: kText)),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: kPrimary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+                        child: Text(ui.badge, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: kPrimary)),
+                      ),
                       const SizedBox(height: 8),
+                      Text(ui.subtitle, style: const TextStyle(color: kMuted, fontSize: 13, height: 1.35)),
+                      const SizedBox(height: 10),
                       Text("${_pu(r)} → ${_do(r)}", style: const TextStyle(fontWeight: FontWeight.w700)),
                       Text("Fare ৳${r["fare"] ?? 0}", style: const TextStyle(color: kMuted)),
+                      if (_st(r) == "requested") ...[
+                        const SizedBox(height: 10),
+                        Text(kDriverMatchingExplainer, style: TextStyle(color: kMuted.withValues(alpha: 0.95), fontSize: 12, height: 1.35)),
+                      ],
                       const SizedBox(height: 10),
                       OutlinedButton(
                         onPressed: () => _cancel(id),
@@ -256,8 +288,148 @@ class _RiderActiveTabState extends State<RiderActiveTab> {
   }
 }
 
+class RiderIncomingTab extends StatefulWidget {
+  final void Function(bool hasIncoming)? onIncomingChanged;
+  final VoidCallback? onGoActive;
+
+  const RiderIncomingTab({super.key, this.onIncomingChanged, this.onGoActive});
+
+  @override
+  State<RiderIncomingTab> createState() => _RiderIncomingTabState();
+}
+
+class _RiderIncomingTabState extends State<RiderIncomingTab> {
+  List<dynamic> _rides = [];
+  bool _loading = true;
+  Timer? _poll;
+  String _busyRideId = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    _poll = Timer.periodic(const Duration(seconds: 8), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final rides = await RiderService.rides();
+      if (!mounted) return;
+      final incoming = rides.where((r) => _active(r)).toList();
+      widget.onIncomingChanged?.call(incoming.isNotEmpty);
+      setState(() => _rides = incoming);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _accept(String id) async {
+    try {
+      setState(() => _busyRideId = id);
+      await RiderService.riderAcceptRide(id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ride accepted.")));
+      widget.onGoActive?.call();
+      await _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$e")));
+    } finally {
+      if (mounted) setState(() => _busyRideId = "");
+    }
+  }
+
+  Future<void> _reject(String id) async {
+    try {
+      setState(() => _busyRideId = id);
+      await RiderService.cancelRide(id, reason: "Rejected by rider from incoming tab");
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ride rejected.")));
+      await _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$e")));
+    } finally {
+      if (mounted) setState(() => _busyRideId = "");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+        children: [
+          if (_loading) const LinearProgressIndicator(minHeight: 2),
+          const Text("Incoming live rides", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+          const SizedBox(height: 8),
+          if (_rides.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 32),
+              child: Center(child: Text("No incoming live rides.", style: TextStyle(color: kMuted, fontWeight: FontWeight.w600))),
+            )
+          else
+            ..._rides.map((r) {
+              final id = "${r["_id"] ?? r["id"]}";
+              final ui = riderFacingRideUi("${r["status"]}");
+              return Card(
+                margin: const EdgeInsets.only(bottom: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: kCardBorder)),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: Text(ui.badge, style: const TextStyle(fontWeight: FontWeight.w800))),
+                          Text("${r["createdAt"] ?? ""}".toString().split(".").first, style: const TextStyle(fontSize: 11, color: kMuted)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text("${_pu(r)} → ${_do(r)}", style: const TextStyle(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 10),
+                      if (r["riderAccepted"] == true)
+                        const Text("Accepted by you", style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 12)),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          if (r["riderAccepted"] != true)
+                            FilledButton.tonal(
+                              onPressed: _busyRideId == id ? null : () => _accept(id),
+                              child: const Text("Accept"),
+                            ),
+                          OutlinedButton(
+                            onPressed: _busyRideId == id ? null : () => _reject(id),
+                            style: OutlinedButton.styleFrom(foregroundColor: kDanger),
+                            child: const Text("Reject"),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+}
+
 class RiderHistoryTab extends StatefulWidget {
-  const RiderHistoryTab({super.key});
+  final VoidCallback? onGoBook;
+
+  const RiderHistoryTab({super.key, this.onGoBook});
 
   @override
   State<RiderHistoryTab> createState() => _RiderHistoryTabState();
@@ -266,7 +438,6 @@ class RiderHistoryTab extends StatefulWidget {
 class _RiderHistoryTabState extends State<RiderHistoryTab> {
   List<dynamic> _rides = [];
   Timer? _poll;
-  String _ratingRideId = "";
 
   @override
   void initState() {
@@ -289,18 +460,13 @@ class _RiderHistoryTabState extends State<RiderHistoryTab> {
     } catch (_) {}
   }
 
-  Future<void> _rateDriver(String rideId, int rating) async {
-    try {
-      setState(() => _ratingRideId = rideId);
-      await RiderService.rateDriver(rideId, rating);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Thanks! Driver review submitted.")));
-      await _load();
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$e")));
-    } finally {
-      if (mounted) setState(() => _ratingRideId = "");
-    }
+  void _openTripSummary(dynamic r) {
+    showRiderTripSummarySheet(
+      context,
+      rideFromList: Map<String, dynamic>.from(r as Map),
+      reloadRides: _load,
+      onGoBook: widget.onGoBook ?? () {},
+    );
   }
 
   @override
@@ -315,56 +481,84 @@ class _RiderHistoryTabState extends State<RiderHistoryTab> {
         separatorBuilder: (_, __) => const SizedBox(height: 10),
         itemBuilder: (_, i) {
           final r = past[i];
-          return ListTile(
-            tileColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: kCardBorder)),
-            title: Text("${_pu(r)} → ${_do(r)}", style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("${_st(r)} · ৳${r["fare"] ?? 0}"),
-                if (_st(r) == "completed") ...[
-                  const SizedBox(height: 8),
-                  if (r["riderRating"] != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF7ED),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: const Color(0xFFFED7AA)),
-                      ),
-                      child: Text(
-                        "Rated ${r["riderRating"]}/5",
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFFD97706)),
-                      ),
-                    )
-                  else
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: List.generate(5, (idx) {
-                        final n = idx + 1;
-                        final id = "${r["_id"] ?? r["id"]}";
-                        return OutlinedButton.icon(
-                          onPressed: _ratingRideId == id ? null : () => _rateDriver(id, n),
-                          icon: const Icon(Icons.star_rounded, size: 16),
-                          label: Text("$n"),
-                          style: OutlinedButton.styleFrom(
-                            visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          final completed = _st(r) == "completed";
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: kCardBorder),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: completed ? () => _openTripSummary(r) : null,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text("${_pu(r)} → ${_do(r)}", style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
                           ),
-                        );
-                      }),
-                    ),
-                ],
-              ],
+                          Text("${_st(r)}", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: kMuted.withOpacity(0.95))),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text("৳${r["fare"] ?? 0}", style: const TextStyle(color: kMuted, fontWeight: FontWeight.w700)),
+                      if (completed) ...[
+                        const SizedBox(height: 10),
+                        if (rideNeedsPayment(r))
+                          const Text(
+                            "Payment due — open Trip summary to pay.",
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFFF9500)),
+                          )
+                        else
+                          Row(
+                            children: [
+                              const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF34C759)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  "Paid · ${formatPaymentMethod("${r["paymentMethod"] ?? "cash"}")}",
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF34C759)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        if (r["riderRating"] != null || (r["riderFeedback"] != null && "${r["riderFeedback"]}".trim().isNotEmpty)) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            "${r["riderRating"] != null ? "${r["riderRating"]}/5 stars" : ""}${r["riderRating"] != null && "${r["riderFeedback"] ?? ""}".trim().isNotEmpty ? " · " : ""}${"${r["riderFeedback"] ?? ""}".trim().isNotEmpty ? "Comment saved" : ""}",
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: kMuted.withOpacity(0.95)),
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(backgroundColor: _riderTripSummaryTeal, foregroundColor: Colors.white),
+                          onPressed: () => _openTripSummary(r),
+                          icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                          label: const Text("Trip summary"),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
             ),
           );
         },
       ),
     );
   }
+
 }
+
+/// Match web trip summary teal accent.
+const Color _riderTripSummaryTeal = Color(0xFF0F766E);
 
 class RiderMoreTab extends StatefulWidget {
   final VoidCallback onLogout;
@@ -442,7 +636,7 @@ class _RiderMoreTabState extends State<RiderMoreTab> {
                   tileColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   title: Text("৳${p["amount"] ?? 0}", style: const TextStyle(fontWeight: FontWeight.w800)),
-                  subtitle: Text("${p["method"] ?? ""} · ${p["status"] ?? ""}"),
+                  subtitle: Text("${formatPaymentMethod("${p["method"]}")} · ${p["status"] ?? ""}"),
                 )),
           const SizedBox(height: 22),
           const Text("Alerts", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),

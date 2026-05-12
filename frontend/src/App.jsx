@@ -18,6 +18,7 @@ import DriverIncomingRequestPage from './pages/driver/DriverIncomingRequestPage'
 import DriverCurrentTripPage from './pages/driver/DriverCurrentTripPage'
 import DriverPaymentOverviewPage from './pages/driver/DriverPaymentOverviewPage'
 import DriverRideHistoryPage from './pages/driver/DriverRideHistoryPage'
+import DriverFeedbackPage from './pages/driver/DriverFeedbackPage'
 import DriverProfilePage from './pages/driver/DriverProfilePage'
 
 // Admin
@@ -52,6 +53,7 @@ function App() {
       <Route path="/driver/trip" element={<DriverCurrentTripPage />} />
       <Route path="/driver/payments" element={<DriverPaymentOverviewPage />} />
       <Route path="/driver/history" element={<DriverRideHistoryPage />} />
+      <Route path="/driver/feedback" element={<DriverFeedbackPage />} />
       <Route path="/driver/profile" element={<DriverProfilePage />} />
 
       {/* Admin Portal */}

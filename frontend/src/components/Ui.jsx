@@ -35,11 +35,17 @@ export function RideItem({ ride }) {
   )
 }
 
+function paymentMethodLabel(method) {
+  const m = String(method || 'cash').toLowerCase()
+  const map = { cash: 'Cash', bkash: 'bKash', nagad: 'Nagad', card: 'Card' }
+  return map[m] || String(method || 'Cash')
+}
+
 export function PaymentItem({ payment }) {
   return (
     <article className="rounded-xl border border-[#d9e3ec] bg-[#f9fcff] p-4">
       <p className="font-semibold text-[#1f2d39]">BDT {Number(payment.amount || 0).toLocaleString()}</p>
-      <p className="text-sm text-[#607281]">{(payment.method || 'cash').toUpperCase()} / {payment.status || 'pending'}</p>
+      <p className="text-sm text-[#607281]">{paymentMethodLabel(payment.method)} · {payment.status || 'pending'}</p>
     </article>
   )
 }

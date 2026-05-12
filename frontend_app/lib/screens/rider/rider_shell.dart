@@ -1,8 +1,11 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:shared_preferences/shared_preferences.dart";
 
 import "../../core/app_theme.dart";
 import "../../core/auth_prefs.dart";
+import "../../services/rider_service.dart";
 import "../../widgets/nav_assistant_sheet.dart";
 import "../home_portal_screen.dart";
 import "rider_book_tab.dart";
@@ -16,7 +19,39 @@ class RiderShell extends StatefulWidget {
 }
 
 class _RiderShellState extends State<RiderShell> {
-  int _ix = 0;
+  String _selected = "home";
+  bool _hasIncoming = false;
+  Timer? _incomingPoll;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncIncoming();
+    _incomingPoll = Timer.periodic(const Duration(seconds: 8), (_) => _syncIncoming());
+  }
+
+  @override
+  void dispose() {
+    _incomingPoll?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _syncIncoming() async {
+    try {
+      final rides = await RiderService.rides();
+      if (!mounted) return;
+      final has = rides.any((r) {
+        final s = "${r["status"] ?? ""}".toLowerCase();
+        return ["requested", "accepted", "arrived", "started", "ongoing"].contains(s);
+      });
+      setState(() {
+        _hasIncoming = has;
+        if (!_hasIncoming && _selected == "incoming") {
+          _selected = "active";
+        }
+      });
+    } catch (_) {}
+  }
 
   Future<void> _logout() async {
     final p = await SharedPreferences.getInstance();
@@ -34,7 +69,7 @@ class _RiderShellState extends State<RiderShell> {
       quickLinks: const [
         (id: "0", label: "Home"),
         (id: "1", label: "Book Ride"),
-        (id: "2", label: "Active"),
+        (id: "2", label: "Incoming / Active"),
         (id: "3", label: "History"),
         (id: "4", label: "More"),
       ],
@@ -42,23 +77,80 @@ class _RiderShellState extends State<RiderShell> {
           "**Tabs**\n• Home — stats & active ride card.\n• Book — trip category, search pickup/dropoff, full car / seat share.\n• Active — cancel if needed.\n• History — completed trips.\n• More — profile, payments, alerts, logout.\n\nSay **open book** or tap chips.",
       onJump: (id) {
         final i = int.tryParse(id);
-        if (i != null && i >= 0 && i <= 4) setState(() => _ix = i);
+        if (i == null) return;
+        setState(() {
+          if (i == 0) _selected = "home";
+          if (i == 1) _selected = "book";
+          if (i == 2) _selected = _hasIncoming ? "incoming" : "active";
+          if (i == 3) _selected = "history";
+          if (i == 4) _selected = "more";
+        });
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final bodies = [
-      RiderHomeTab(onGoTab: (i) => setState(() => _ix = i)),
-      const RiderBookTab(),
-      RiderActiveTab(onGoTab: (i) => setState(() => _ix = i)),
-      const RiderHistoryTab(),
-      RiderMoreTab(onLogout: _logout),
+    final tabs = <({String key, Widget body, NavigationDestination nav})>[
+      (
+        key: "home",
+        body: RiderHomeTab(onGoTab: (i) {
+          setState(() {
+            if (i == 1) _selected = "book";
+            if (i == 2) _selected = _hasIncoming ? "incoming" : "active";
+            if (i == 3) _selected = "history";
+            if (i == 4) _selected = "more";
+          });
+        }),
+        nav: const NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: "Home"),
+      ),
+      (
+        key: "book",
+        body: const RiderBookTab(),
+        nav: const NavigationDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map_rounded), label: "Book"),
+      ),
+      if (_hasIncoming)
+        (
+          key: "incoming",
+          body: RiderIncomingTab(
+            onIncomingChanged: (has) {
+              if (!mounted) return;
+              setState(() {
+                _hasIncoming = has;
+                if (!has && _selected == "incoming") _selected = "active";
+              });
+            },
+            onGoActive: () => setState(() => _selected = "active"),
+          ),
+          nav: const NavigationDestination(icon: Icon(Icons.inbox_outlined), selectedIcon: Icon(Icons.inbox_rounded), label: "Incoming"),
+        ),
+      (
+        key: "active",
+        body: RiderActiveTab(onGoTab: (i) {
+          setState(() {
+            if (i == 1) _selected = "book";
+            if (i == 3) _selected = "history";
+            if (i == 4) _selected = "more";
+          });
+        }),
+        nav: const NavigationDestination(icon: Icon(Icons.navigation_outlined), selectedIcon: Icon(Icons.navigation_rounded), label: "Active"),
+      ),
+      (
+        key: "history",
+        body: RiderHistoryTab(onGoBook: () => setState(() => _selected = "book")),
+        nav: const NavigationDestination(icon: Icon(Icons.history_rounded), selectedIcon: Icon(Icons.history_rounded), label: "History"),
+      ),
+      (
+        key: "more",
+        body: RiderMoreTab(onLogout: _logout),
+        nav: const NavigationDestination(icon: Icon(Icons.menu_rounded), selectedIcon: Icon(Icons.menu_open_rounded), label: "More"),
+      ),
     ];
+    final selectedIndex = tabs.indexWhere((t) => t.key == _selected);
+    final safeIndex = selectedIndex < 0 ? 0 : selectedIndex;
 
     return Scaffold(
-      body: bodies[_ix],
+      body: tabs[safeIndex].body,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _assistant,
         backgroundColor: kPrimary,
@@ -68,15 +160,9 @@ class _RiderShellState extends State<RiderShell> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _ix,
-        onDestinationSelected: (i) => setState(() => _ix = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: "Home"),
-          NavigationDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map_rounded), label: "Book"),
-          NavigationDestination(icon: Icon(Icons.navigation_outlined), selectedIcon: Icon(Icons.navigation_rounded), label: "Active"),
-          NavigationDestination(icon: Icon(Icons.history_rounded), selectedIcon: Icon(Icons.history_rounded), label: "History"),
-          NavigationDestination(icon: Icon(Icons.menu_rounded), selectedIcon: Icon(Icons.menu_open_rounded), label: "More"),
-        ],
+        selectedIndex: safeIndex,
+        onDestinationSelected: (i) => setState(() => _selected = tabs[i].key),
+        destinations: tabs.map((t) => t.nav).toList(),
       ),
     );
   }

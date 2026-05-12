@@ -40,11 +40,24 @@ class _RiderBookTabState extends State<RiderBookTab> {
   bool _pickupSearchBusy = false;
   bool _dropoffSearchBusy = false;
   bool _busy = false;
+  List<dynamic> _activeDrivers = [];
+  List<dynamic> _pastDrivers = [];
+  bool _driversLoading = false;
+  String _selectedDriverId = "";
+  Timer? _driversPoll;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDriverChoices();
+    _driversPoll = Timer.periodic(const Duration(seconds: 8), (_) => _loadDriverChoices());
+  }
 
   @override
   void dispose() {
     _pickupDebounce?.cancel();
     _dropoffDebounce?.cancel();
+    _driversPoll?.cancel();
     _removePickupOverlay();
     _removeDropoffOverlay();
     _promo.dispose();
@@ -240,6 +253,7 @@ class _RiderBookTabState extends State<RiderBookTab> {
     });
     _removePickupOverlay();
     FocusScope.of(context).unfocus();
+    _loadDriverChoices();
   }
 
   void _applyDropoff(PlaceSuggestion p) {
@@ -251,6 +265,30 @@ class _RiderBookTabState extends State<RiderBookTab> {
     });
     _removeDropoffOverlay();
     FocusScope.of(context).unfocus();
+  }
+
+  Future<void> _loadDriverChoices() async {
+    if (!mounted) return;
+    setState(() => _driversLoading = true);
+    try {
+      final data = await RiderService.driverChoices(
+        pickupLat: _pickup?.latitude,
+        pickupLng: _pickup?.longitude,
+      );
+      if (!mounted) return;
+      setState(() {
+        _activeDrivers = (data["activeDrivers"] as List?) ?? [];
+        _pastDrivers = (data["pastDrivers"] as List?) ?? [];
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _activeDrivers = [];
+        _pastDrivers = [];
+      });
+    } finally {
+      if (mounted) setState(() => _driversLoading = false);
+    }
   }
 
   /// Backend accepts one `ride_type`; intercity categories map to dedicated enum values.
@@ -277,7 +315,7 @@ class _RiderBookTabState extends State<RiderBookTab> {
     try {
       final pu = _pickupCtrl.text.trim();
       final dr = _dropoffCtrl.text.trim();
-      await RiderService.requestRide({
+      final bookingRes = await RiderService.requestRide({
         "pickup_address": pu.isEmpty ? "${_pickup!.latitude.toStringAsFixed(5)}, ${_pickup!.longitude.toStringAsFixed(5)}" : pu,
         "dropoff_address": dr.isEmpty ? "${_dropoff!.latitude.toStringAsFixed(5)}, ${_dropoff!.longitude.toStringAsFixed(5)}" : dr,
         "pickup_lat": _pickup!.latitude,
@@ -289,11 +327,27 @@ class _RiderBookTabState extends State<RiderBookTab> {
         "vehicle_capacity": _capacity,
         "party_size": _bookingMode == "seat_share" ? _party : _capacity,
         "promo_code": _promo.text.trim(),
-        "fare": 0,
-        "payment_method": "cash",
+        if (_selectedDriverId.isNotEmpty) "selected_driver_id": _selectedDriverId,
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ride requested!")));
+      final m = bookingRes["matching"];
+      final selectedId = "${m is Map ? (m["selectedDriverId"] ?? "") : ""}";
+      final selectedApplied = m is Map && m["selectedDriverApplied"] == true;
+      var extra = "";
+      if (m is Map) {
+        final n = m["eligibleDriversNearPickup"];
+        final pre = m["preAssignedToNearestDriver"];
+        if (n is num) {
+          extra = " · $n driver${n == 1 ? "" : "s"} eligible near pickup";
+          if (pre == true) extra += " (nearest notified)";
+        }
+      }
+      final chosenMsg = selectedId.trim().isEmpty
+          ? "Ride requested! Trip is live — finding a driver.$extra"
+          : selectedApplied
+              ? "Ride requested! Your selected driver was notified first.$extra"
+              : "Ride requested! Selected driver unavailable now — nearest eligible driver was notified.$extra";
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(chosenMsg)));
       setState(() {
         _pickup = null;
         _dropoff = null;
@@ -303,6 +357,7 @@ class _RiderBookTabState extends State<RiderBookTab> {
         _dropoffOptions = [];
         _promo.clear();
         _tripCategory = "city";
+        _selectedDriverId = "";
       });
       _removePickupOverlay();
       _removeDropoffOverlay();
@@ -479,6 +534,66 @@ class _RiderBookTabState extends State<RiderBookTab> {
         ),
         if (_dropoffSearchBusy) const LinearProgressIndicator(minHeight: 2),
         const SizedBox(height: 12),
+        Row(
+          children: [
+            const Expanded(
+              child: Text("Choose driver (optional)", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+            ),
+            if (_selectedDriverId.isNotEmpty)
+              TextButton(
+                onPressed: () => setState(() => _selectedDriverId = ""),
+                child: const Text("Clear"),
+              ),
+            TextButton(onPressed: _driversLoading ? null : _loadDriverChoices, child: const Text("Refresh")),
+          ],
+        ),
+        if (_selectedDriverId.isNotEmpty)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 6),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text("Preferred driver selected.", style: TextStyle(fontSize: 12, color: kPrimary, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        if (_driversLoading)
+          const LinearProgressIndicator(minHeight: 2)
+        else ...[
+          const SizedBox(height: 6),
+          const Text("Active drivers nearby", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: kMuted)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: _activeDrivers.take(8).map((d) {
+              final id = "${d["_id"] ?? ""}";
+              final label = "${d["name"] ?? "Driver"}${d["distanceKm"] != null ? " · ${d["distanceKm"]} km" : " · GPS updating"}";
+              return ChoiceChip(
+                label: Text(label),
+                selected: _selectedDriverId == id,
+                onSelected: (_) => setState(() => _selectedDriverId = id),
+              );
+            }).toList(),
+          ),
+          if (_activeDrivers.isEmpty) const Text("No active drivers listed.", style: TextStyle(fontSize: 12, color: kMuted)),
+          const SizedBox(height: 8),
+          const Text("Past drivers", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: kMuted)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: _pastDrivers.take(8).map((d) {
+              final id = "${d["_id"] ?? ""}";
+              final label = "${d["name"] ?? "Driver"} · ${d["activeNow"] == true ? "online" : "offline"}";
+              return ChoiceChip(
+                label: Text(label),
+                selected: _selectedDriverId == id,
+                onSelected: (_) => setState(() => _selectedDriverId = id),
+              );
+            }).toList(),
+          ),
+          if (_pastDrivers.isEmpty) const Text("No past drivers yet.", style: TextStyle(fontSize: 12, color: kMuted)),
+        ],
+        const SizedBox(height: 12),
         const Text("Route preview (map is read-only)", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: kMuted)),
         const SizedBox(height: 6),
         ClipRRect(
@@ -508,6 +623,11 @@ class _RiderBookTabState extends State<RiderBookTab> {
         TextField(
           controller: _promo,
           decoration: const InputDecoration(labelText: "Promo code (optional)", border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          "Fare is confirmed when you request; pay after the trip ends from Trip History with Cash, bKash, Nagad, or Card.",
+          style: TextStyle(fontSize: 12, color: kMuted),
         ),
         const SizedBox(height: 16),
         FilledButton.icon(

@@ -42,6 +42,7 @@ exports.getRides = async (req, res) => {
 exports.getRideRequests = async (req, res) => {
   const rides = await Ride.find({
     status: "requested",
+    rejectedDriverIds: { $nin: [req.user.id] },
     $or: [{ driverId: req.user.id }, { driverId: { $exists: false } }, { driverId: null }],
   })
     .sort({ createdAt: -1 })
@@ -79,6 +80,26 @@ exports.getDocuments = async (req, res) => {
 exports.getNotifications = async (req, res) => {
   const notifications = await Notification.find({ userId: req.user.id }).sort({ createdAt: -1 });
   res.json({ success: true, data: notifications });
+};
+
+/** Completed rides with a star rating and/or written feedback from the rider. */
+exports.getRiderFeedback = async (req, res) => {
+  try {
+    const raw = await Ride.find({ driverId: req.user.id, status: "completed" })
+      .sort({ tripCompletedAt: -1, updatedAt: -1 })
+      .limit(150)
+      .populate("riderId", "name profilePhoto phone")
+      .lean();
+    const data = raw.filter(
+      (r) =>
+        (Number(r.riderRating) >= 1 && Number(r.riderRating) <= 5) ||
+        (typeof r.riderFeedback === "string" && r.riderFeedback.trim().length > 0)
+    );
+    res.json({ success: true, data });
+  } catch (e) {
+    console.error("getRiderFeedback", e);
+    res.status(500).json({ success: false, message: e.message || "Could not load feedback." });
+  }
 };
 
 exports.updateFcmToken = async (req, res) => {

@@ -37,6 +37,12 @@ class DriverService {
     return d is List ? d : [];
   }
 
+  static Future<List<dynamic>> riderFeedback() async {
+    final m = await ApiClient.get("/api/drivers/rider-feedback", tokenPref: AuthPrefs.driverToken);
+    final d = m["data"];
+    return d is List ? d : [];
+  }
+
   static Future<void> acceptRide(String id) =>
       ApiClient.patch("/api/rides/$id/accept", {}, tokenPref: AuthPrefs.driverToken);
 

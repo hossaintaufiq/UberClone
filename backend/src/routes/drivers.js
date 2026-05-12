@@ -17,6 +17,7 @@ router.get('/earnings',      driver.getEarnings);
 router.post('/documents',    upload.uploadDocument, driver.uploadDocument);
 router.get('/documents',     driver.getDocuments);
 router.get('/notifications', driver.getNotifications);
+router.get('/rider-feedback', driver.getRiderFeedback);
 router.put('/fcm-token',     driver.updateFcmToken);
 
 module.exports = router;

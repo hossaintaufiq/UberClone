@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { RideRoutePreviewMap } from '../components/Maps'
+import { LiveRideMap, RideRoutePreviewMap } from '../components/Maps'
 import { PlaceSearchField } from '../components/PlaceSearchField'
 import { TOKEN_KEY } from '../constants/auth'
 import { apiRequest } from '../services/api'
-import { onRealtimeRefresh } from '../services/realtime'
+import { joinRideRoom, onDriverLocation, onRealtimeRefresh } from '../services/realtime'
 import { formatCoordsLabel } from '../services/geocoding'
 import { previewRidePricing } from '../utils/ridePricingPreview'
+import { riderFacingRideUI, DRIVER_MATCHING_EXPLAINER, paymentMethodLabel, rideNeedsPayment } from '../utils/rideStatus'
 import ConfirmToast from '../components/ConfirmToast'
-import { User, Users, UsersRound, Building2, Route, Sun, Home, Car, MapPin, ClipboardList, Banknote, Bell, UserCircle, MessageCircle, Map as MapIcon, Compass, Navigation, ArrowRight, Star } from 'lucide-react'
+import RiderTripSummaryModal from '../components/RiderTripSummaryModal'
+import { User, Users, UsersRound, Building2, Route, Sun, Home, Car, MapPin, ClipboardList, Banknote, Bell, UserCircle, MessageCircle, Map as MapIcon, Compass, Navigation, ArrowRight, FileText } from 'lucide-react'
 
 const rideTypes = [
   { key: 'single', label: 'Single', icon: <User size={28} />, desc: 'Solo ride' },
@@ -49,7 +51,16 @@ export default function RiderAppPage() {
   const [vehicleCapacity, setVehicleCapacity] = useState(5)
   const [partySize, setPartySize] = useState(1)
   const [confirmToast, setConfirmToast] = useState('')
-  const [ratingBusyRideId, setRatingBusyRideId] = useState('')
+  /** Last POST /api/rides matching payload — eligible driver counts at booking time */
+  const [matchingHint, setMatchingHint] = useState(null)
+  const [feedbackBusyRideId, setFeedbackBusyRideId] = useState('')
+  const [paymentBusyRideId, setPaymentBusyRideId] = useState('')
+  const [summaryRide, setSummaryRide] = useState(null)
+  const [driverLivePoint, setDriverLivePoint] = useState(null)
+  const [driverChoices, setDriverChoices] = useState({ activeDrivers: [], pastDrivers: [] })
+  const [driverChoicesLoading, setDriverChoicesLoading] = useState(false)
+  const [selectedDriverId, setSelectedDriverId] = useState('')
+  const [incomingBusyRideId, setIncomingBusyRideId] = useState('')
 
   const farePreview = useMemo(() => {
     if (!pickupPt || !dropoffPt) return null
@@ -93,6 +104,24 @@ export default function RiderAppPage() {
     }
   }
 
+  const loadDriverChoices = async () => {
+    try {
+      setDriverChoicesLoading(true)
+      const qs = pickupPt
+        ? `?pickup_lat=${encodeURIComponent(pickupPt.lat)}&pickup_lng=${encodeURIComponent(pickupPt.lng)}`
+        : ''
+      const data = await apiRequest(`/api/riders/drivers/choices${qs}`, { tokenKey: TOKEN_KEY })
+      setDriverChoices({
+        activeDrivers: data?.data?.activeDrivers || [],
+        pastDrivers: data?.data?.pastDrivers || [],
+      })
+    } catch {
+      setDriverChoices({ activeDrivers: [], pastDrivers: [] })
+    } finally {
+      setDriverChoicesLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (!localStorage.getItem(TOKEN_KEY)) { navigate('/rider/login'); return }
     load()
@@ -111,10 +140,100 @@ export default function RiderAppPage() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    setSummaryRide((prev) => {
+      if (!prev) return prev
+      const sid = String(prev._id || prev.id)
+      const fresh = state.rides.find((r) => String(r._id || r.id) === sid)
+      if (!fresh) return prev
+      const keepPopulatedDriver =
+        typeof prev.driverId === 'object' &&
+        prev.driverId !== null &&
+        (prev.driverId.name || prev.driverId.profilePhoto)
+      return {
+        ...prev,
+        ...fresh,
+        driverId: keepPopulatedDriver ? prev.driverId : fresh.driverId,
+      }
+    })
+  }, [state.rides])
+
   const activeRide = useMemo(
     () => state.rides.find((ride) => ['requested', 'accepted', 'arrived', 'started', 'ongoing'].includes(String(ride.status || '').toLowerCase())),
     [state.rides]
   )
+  const liveIncomingRides = useMemo(
+    () => state.rides.filter((ride) => ['requested', 'accepted', 'arrived', 'started', 'ongoing'].includes(String(ride.status || '').toLowerCase())),
+    [state.rides]
+  )
+  const hasIncomingRides = liveIncomingRides.length > 0
+
+  const activeRideUi = useMemo(() => riderFacingRideUI(activeRide?.status), [activeRide?.status])
+  const activePickupPoint = useMemo(() => {
+    const lat = Number(activeRide?.pickupLat)
+    const lng = Number(activeRide?.pickupLng)
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null
+  }, [activeRide?.pickupLat, activeRide?.pickupLng])
+  const activeDropoffPoint = useMemo(() => {
+    const lat = Number(activeRide?.dropoffLat)
+    const lng = Number(activeRide?.dropoffLng)
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null
+  }, [activeRide?.dropoffLat, activeRide?.dropoffLng])
+
+  useEffect(() => {
+    if (!activeRide || ['completed', 'cancelled'].includes(String(activeRide.status || '').toLowerCase())) {
+      setMatchingHint(null)
+    }
+  }, [activeRide])
+
+  useEffect(() => {
+    if (view === 'incoming' && !hasIncomingRides) {
+      setView(activeRide ? 'active' : 'home')
+    }
+  }, [view, hasIncomingRides, activeRide])
+
+  useEffect(() => {
+    if (view !== 'book') return
+    loadDriverChoices()
+  }, [view, pickupPt?.lat, pickupPt?.lng]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (view !== 'book') return
+    const id = window.setInterval(() => {
+      loadDriverChoices()
+    }, 8000)
+    return () => window.clearInterval(id)
+  }, [view, pickupPt?.lat, pickupPt?.lng]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const rideId = String(activeRide?._id || activeRide?.id || '')
+    if (!rideId) {
+      setDriverLivePoint(null)
+      return
+    }
+    joinRideRoom(rideId)
+    const stop = onDriverLocation(rideId, ({ lat, lng }) => {
+      setDriverLivePoint({ lat, lng })
+    })
+    return () => {
+      stop?.()
+    }
+  }, [activeRide?._id, activeRide?.id])
+
+  useEffect(() => {
+    const rideId = String(activeRide?._id || activeRide?.id || '')
+    if (!rideId) return
+    apiRequest(`/api/rides/${rideId}/track`, { tokenKey: TOKEN_KEY })
+      .then((res) => {
+        const d = res?.data?.driverId
+        const lat = Number(d?.location?.lat)
+        const lng = Number(d?.location?.lng)
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          setDriverLivePoint({ lat, lng })
+        }
+      })
+      .catch(() => {})
+  }, [activeRide?._id, activeRide?.id])
 
   const requestRide = async (event) => {
     event.preventDefault()
@@ -123,11 +242,10 @@ export default function RiderAppPage() {
       setMessage('Search and select pickup and dropoff locations from the list.')
       return
     }
-    const fd = new FormData(event.currentTarget)
     const pickupAddr = pickupAddressField.trim() || formatCoordsLabel(pickupPt.lat, pickupPt.lng)
     const dropAddr = dropoffAddressField.trim() || formatCoordsLabel(dropoffPt.lat, dropoffPt.lng)
     try {
-      await apiRequest('/api/rides', {
+      const bookingRes = await apiRequest('/api/rides', {
         method: 'POST',
         body: {
           pickup_address: pickupAddr,
@@ -136,16 +254,16 @@ export default function RiderAppPage() {
           pickup_lng: Number(pickupPt.lng),
           dropoff_lat: Number(dropoffPt.lat),
           dropoff_lng: Number(dropoffPt.lng),
-          fare: Number(fd.get('fare') || 0),
-          payment_method: fd.get('payment_method') || 'cash',
           promo_code: promoCode.trim(),
           ride_type: selectedRideType,
           booking_mode: bookingMode,
           vehicle_capacity: vehicleCapacity,
           party_size: bookingMode === 'seat_share' ? partySize : vehicleCapacity,
+          selected_driver_id: selectedDriverId || undefined,
         },
         tokenKey: TOKEN_KEY,
       })
+      setMatchingHint(bookingRes.matching || null)
       formEl?.reset()
       setPickupPt(null)
       setDropoffPt(null)
@@ -155,8 +273,17 @@ export default function RiderAppPage() {
       setVehicleCapacity(5)
       setPartySize(1)
       setPromoCode('')
+      setSelectedDriverId('')
       setConfirmToast('Ride booking confirmed successfully.')
-      setMessage('Ride requested successfully!')
+      const chosenId = String(bookingRes?.matching?.selectedDriverId || '')
+      const chosenApplied = bookingRes?.matching?.selectedDriverApplied === true
+      setMessage(
+        chosenId
+          ? chosenApplied
+            ? 'Ride requested successfully! Your selected driver was notified first.'
+            : 'Ride requested successfully! Selected driver unavailable now — nearest eligible driver was notified.'
+          : 'Ride requested successfully!'
+      )
       setView('active')
       load()
     } catch (error) {
@@ -173,10 +300,47 @@ export default function RiderAppPage() {
         tokenKey: TOKEN_KEY,
       })
       setMessage('Ride cancelled. ৳30 penalty will be added to your next ride.')
+      setMatchingHint(null)
       setView('history')
       load()
     } catch (error) {
       setMessage(error.message)
+    }
+  }
+
+  const rejectIncomingRide = async (rideId) => {
+    if (!rideId) return
+    try {
+      setIncomingBusyRideId(String(rideId))
+      await apiRequest(`/api/rides/${rideId}/cancel`, {
+        method: 'PATCH',
+        body: { reason: 'Rejected by rider from incoming list' },
+        tokenKey: TOKEN_KEY,
+      })
+      setMessage('Ride rejected successfully.')
+      await load()
+    } catch (error) {
+      setMessage(error.message)
+    } finally {
+      setIncomingBusyRideId('')
+    }
+  }
+
+  const acceptIncomingRide = async (rideId) => {
+    if (!rideId) return
+    try {
+      setIncomingBusyRideId(String(rideId))
+      await apiRequest(`/api/rides/${rideId}/rider-accept`, {
+        method: 'PATCH',
+        tokenKey: TOKEN_KEY,
+      })
+      setConfirmToast('Ride accepted from incoming list.')
+      setView('active')
+      await load()
+    } catch (error) {
+      setMessage(error.message)
+    } finally {
+      setIncomingBusyRideId('')
     }
   }
 
@@ -185,27 +349,65 @@ export default function RiderAppPage() {
     navigate('/rider/login')
   }
 
-  const rateDriver = async (rideId, rating) => {
+  const payForRide = async (rideId, method) => {
     if (!rideId) return
     try {
-      setRatingBusyRideId(String(rideId))
-      await apiRequest(`/api/rides/${rideId}/rate-driver`, {
+      setPaymentBusyRideId(String(rideId))
+      await apiRequest(`/api/rides/${rideId}/pay`, {
         method: 'POST',
-        body: { rating },
+        body: { method },
         tokenKey: TOKEN_KEY,
       })
-      setConfirmToast('Thanks! Your driver review was submitted.')
+      setConfirmToast('Payment recorded. Thanks!')
       await load()
     } catch (error) {
       setMessage(error.message)
     } finally {
-      setRatingBusyRideId('')
+      setPaymentBusyRideId('')
+    }
+  }
+
+  const openTripSummary = async (ride) => {
+    const id = ride._id || ride.id
+    if (!id) return
+    try {
+      const tr = await apiRequest(`/api/rides/${id}/track`, { tokenKey: TOKEN_KEY })
+      const d = tr.data || {}
+      setSummaryRide({
+        ...ride,
+        ...d,
+        paymentPaid: ride.paymentPaid,
+        paymentMethod: ride.paymentMethod ?? d.paymentMethod,
+        paymentAmount: ride.paymentAmount ?? d.paymentAmount,
+        driverId: d.driverId ?? ride.driverId,
+      })
+    } catch {
+      setSummaryRide(ride)
+    }
+  }
+
+  const submitRideFeedback = async (rideId, rating, comment) => {
+    if (!rideId || rating < 1) return
+    try {
+      setFeedbackBusyRideId(String(rideId))
+      await apiRequest(`/api/rides/${rideId}/rate-driver`, {
+        method: 'POST',
+        body: { rating, comment: typeof comment === 'string' ? comment.trim() : '' },
+        tokenKey: TOKEN_KEY,
+      })
+      setConfirmToast('Thanks — your feedback was saved.')
+      await load()
+    } catch (error) {
+      setMessage(error.message)
+    } finally {
+      setFeedbackBusyRideId('')
     }
   }
 
   const views = [
     { key: 'home', label: 'Overview', icon: <Home size={18} /> },
     { key: 'book', label: 'Book Ride', icon: <Compass size={18} /> },
+    ...(hasIncomingRides ? [{ key: 'incoming', label: 'Incoming', icon: <MapPin size={18} /> }] : []),
     { key: 'active', label: 'Active', icon: <Navigation size={18} /> },
     { key: 'history', label: 'History', icon: <ClipboardList size={18} /> },
     { key: 'payments', label: 'Wallet', icon: <Banknote size={18} /> },
@@ -310,11 +512,26 @@ export default function RiderAppPage() {
                       <div className="grid h-10 w-10 place-items-center rounded-full bg-[#007AFF]/10 text-[#007AFF]">
                         <Navigation size={20} className="animate-pulse" />
                       </div>
-                      <h2 className="text-2xl font-black text-[#1c2731]">Ride in Progress</h2>
+                      <h2 className="text-2xl font-black text-[#1c2731]">{activeRideUi.headline}</h2>
                     </div>
-                    <span className={`rounded-full px-4 py-1.5 text-[12px] font-black uppercase tracking-wider ${statusColors[activeRide.status]}`}>{activeRide.status}</span>
+                    <span className={`rounded-full px-4 py-1.5 text-[12px] font-black uppercase tracking-wider ${statusColors[activeRide.status] || 'bg-slate-100 text-[#607282]'}`}>{activeRideUi.badge}</span>
                   </div>
-                  
+                  {activeRideUi.subtitle ? (
+                    <p className="mb-6 text-[14px] font-medium leading-relaxed text-[#607282]">{activeRideUi.subtitle}</p>
+                  ) : null}
+                  {String(activeRide.status || '').toLowerCase() === 'requested' ? (
+                    <div className="mb-6 rounded-[1rem] bg-[#f8fafc] p-4 text-[13px] leading-relaxed text-[#607282] ring-1 ring-[#d9e3ec]">
+                      <p className="font-bold text-[#1c2731]">How drivers are matched</p>
+                      <p className="mt-1">{DRIVER_MATCHING_EXPLAINER}</p>
+                      {matchingHint?.eligibleDriversNearPickup != null ? (
+                        <p className="mt-2 font-semibold text-[#007AFF]">
+                          At booking: {matchingHint.eligibleDriversNearPickup} driver{matchingHint.eligibleDriversNearPickup === 1 ? '' : 's'} near pickup with GPS
+                          {matchingHint.preAssignedToNearestDriver ? ' · nearest notified first' : ''}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   <div className="mb-8 flex items-center gap-6 rounded-[1.5rem] bg-[#f8fafc] p-6 ring-1 ring-inset ring-[#d9e3ec]">
                     <div className="flex flex-1 flex-col justify-center">
                       <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#8a9aab]">Pickup</p>
@@ -588,20 +805,78 @@ export default function RiderAppPage() {
               <RideRoutePreviewMap pickup={pickupPt} dropoff={dropoffPt} className="relative z-0 mb-6" />
 
               <form onSubmit={requestRide} className="space-y-4">
+                <p className="rounded-[1rem] bg-[#f8fafc] p-4 text-[13px] font-semibold leading-relaxed text-[#607282] ring-1 ring-[#d9e3ec]">
+                  Fare is calculated when you request the ride. You’ll pay after the trip ends — choose Cash, bKash, Nagad, or Card from <strong className="text-[#1c2731]">Trip History</strong>.
+                </p>
 
-                <div className="pt-2">
-                  <p className="mb-2 text-[11px] font-extrabold uppercase tracking-widest text-[#8a9aab]">Payment & Fare</p>
-                  <div className="flex gap-4">
-                    <div className="relative flex-1">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#1c2731]"><span className="font-bold">৳</span></div>
-                      <input name="fare" className="w-full rounded-[1.2rem] bg-[#f8fafc] py-3.5 pl-9 pr-4 text-[15px] font-black text-[#1c2731] shadow-sm ring-1 ring-[#d9e3ec] transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#007AFF]" placeholder="Fare" />
+                <div className="rounded-[1.25rem] bg-white p-4 ring-1 ring-[#d9e3ec]">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-[12px] font-extrabold uppercase tracking-widest text-[#8a9aab]">Choose Driver (optional)</p>
+                    <div className="flex items-center gap-2">
+                      {selectedDriverId ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDriverId('')}
+                          className="rounded-full bg-[#fff5f5] px-3 py-1 text-[11px] font-bold text-[#ff3b30] ring-1 ring-[#ffd4d4]"
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={loadDriverChoices}
+                        className="rounded-full bg-[#f8fafc] px-3 py-1 text-[11px] font-bold text-[#607282] ring-1 ring-[#d9e3ec]"
+                      >
+                        Refresh
+                      </button>
                     </div>
-                    <select name="payment_method" className="flex-1 rounded-[1.2rem] bg-[#f8fafc] px-4 py-3.5 text-[14px] font-bold text-[#1c2731] shadow-sm ring-1 ring-[#d9e3ec] transition-all focus:outline-none focus:ring-2 focus:ring-[#007AFF]">
-                      <option value="cash">Cash 💵</option>
-                      <option value="card">Card 💳</option>
-                      <option value="bkash">bKash 📱</option>
-                    </select>
                   </div>
+                  {selectedDriverId ? (
+                    <p className="mb-2 text-[12px] font-bold text-[#007AFF]">Preferred driver selected.</p>
+                  ) : null}
+                  {driverChoicesLoading ? (
+                    <p className="text-[12px] font-medium text-[#8a9aab]">Loading active and past drivers…</p>
+                  ) : (
+                    <>
+                      <p className="mb-2 text-[12px] font-bold text-[#1c2731]">Active drivers near you</p>
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        {(driverChoices.activeDrivers || []).slice(0, 8).map((d) => (
+                          <button
+                            key={String(d._id)}
+                            type="button"
+                            onClick={() => setSelectedDriverId(String(d._id))}
+                            className={`rounded-full px-3 py-1.5 text-[12px] font-bold ring-1 transition-all ${
+                              selectedDriverId === String(d._id)
+                                ? 'bg-[#007AFF] text-white ring-[#007AFF]'
+                                : 'bg-white text-[#1c2731] ring-[#d9e3ec] hover:bg-[#f8fafc]'
+                            }`}
+                          >
+                            {d.name} {d.distanceKm != null ? `· ${d.distanceKm} km` : '· GPS updating'}
+                          </button>
+                        ))}
+                        {(driverChoices.activeDrivers || []).length === 0 ? <p className="text-[12px] text-[#8a9aab]">No active drivers listed yet.</p> : null}
+                      </div>
+
+                      <p className="mb-2 text-[12px] font-bold text-[#1c2731]">Past drivers</p>
+                      <div className="flex flex-wrap gap-2">
+                        {(driverChoices.pastDrivers || []).slice(0, 8).map((d) => (
+                          <button
+                            key={`past-${String(d._id)}`}
+                            type="button"
+                            onClick={() => setSelectedDriverId(String(d._id))}
+                            className={`rounded-full px-3 py-1.5 text-[12px] font-bold ring-1 transition-all ${
+                              selectedDriverId === String(d._id)
+                                ? 'bg-[#007AFF] text-white ring-[#007AFF]'
+                                : 'bg-white text-[#1c2731] ring-[#d9e3ec] hover:bg-[#f8fafc]'
+                            }`}
+                          >
+                            {d.name} {d.activeNow ? '· online' : '· offline'}
+                          </button>
+                        ))}
+                        {(driverChoices.pastDrivers || []).length === 0 ? <p className="text-[12px] text-[#8a9aab]">No past drivers yet.</p> : null}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="flex gap-2 pt-2">
@@ -627,27 +902,99 @@ export default function RiderAppPage() {
         )}
 
         {/* ===================== ACTIVE VIEW ===================== */}
+        {view === 'incoming' && (
+          <div className="mx-auto max-w-3xl space-y-5 animate-in fade-in slide-in-from-bottom-4">
+            <h2 className="mb-4 text-3xl font-black tracking-tight text-[#1c2731]">Incoming Live Rides</h2>
+            {liveIncomingRides.length === 0 ? (
+              <div className="rounded-[2.5rem] border-2 border-dashed border-[#d9e3ec] bg-white/50 py-20 text-center text-[15px] font-bold text-[#8a9aab]">
+                No live rides right now.
+              </div>
+            ) : (
+              liveIncomingRides.map((ride) => {
+                const id = String(ride._id || ride.id || '')
+                const s = String(ride.status || '').toLowerCase()
+                const canAccept = ['requested', 'accepted', 'arrived', 'started', 'ongoing'].includes(s) && ride.riderAccepted !== true
+                const canCancel = ['requested', 'accepted', 'arrived', 'started', 'ongoing'].includes(s)
+                return (
+                  <div key={id} className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-[#d9e3ec] sm:p-8">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <span className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider ${statusColors[ride.status] || 'bg-slate-100 text-[#607282]'}`}>
+                        {riderFacingRideUI(ride.status).badge}
+                      </span>
+                      <span className="text-[12px] font-bold text-[#8a9aab]">{new Date(ride.createdAt).toLocaleString()}</span>
+                    </div>
+                    <p className="text-[15px] font-black text-[#1c2731]"><span className="mr-1 font-medium text-[#8a9aab]">From:</span>{ride.pickupAddress}</p>
+                    <p className="mt-1 text-[15px] font-black text-[#1c2731]"><span className="mr-1 font-medium text-[#8a9aab]">To:</span>{ride.dropoffAddress}</p>
+                    {ride.riderAccepted ? (
+                      <p className="mt-3 text-[13px] font-bold text-[#007AFF]">Accepted by you</p>
+                    ) : null}
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {canAccept ? (
+                        <button
+                          type="button"
+                          disabled={incomingBusyRideId === id}
+                          onClick={() => acceptIncomingRide(id)}
+                          className="rounded-full bg-[#007AFF] px-4 py-2 text-[12px] font-black uppercase tracking-wide text-white ring-1 ring-[#007AFF]/30 disabled:opacity-50"
+                        >
+                          Accept
+                        </button>
+                      ) : null}
+                      {canCancel ? (
+                        <button
+                          type="button"
+                          disabled={incomingBusyRideId === id}
+                          onClick={() => rejectIncomingRide(id)}
+                          className="rounded-full bg-[#fff5f5] px-4 py-2 text-[12px] font-black uppercase tracking-wide text-[#ff3b30] ring-1 ring-[#ffd4d4] disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => setView('active')}
+                        className="rounded-full bg-white px-4 py-2 text-[12px] font-black uppercase tracking-wide text-[#1c2731] ring-1 ring-[#d9e3ec]"
+                      >
+                        Open Active View
+                      </button>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        )}
+
+        {/* ===================== ACTIVE VIEW ===================== */}
         {view === 'active' && (
           <div className="animate-in fade-in slide-in-from-bottom-4">
             {activeRide ? (
               <div className="mx-auto max-w-2xl overflow-hidden rounded-[3rem] bg-white shadow-[0_15px_50px_rgb(0,0,0,0.06)] ring-1 ring-[#d9e3ec]">
                 
-                {/* Simulated Map Header */}
-                <div className="relative h-64 w-full bg-[#e8f4fd] overflow-hidden">
-                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
-                  <div className="absolute h-full w-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-200/40 via-transparent to-transparent"></div>
-                  <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center">
-                    <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-xl">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#007AFF] opacity-20"></span>
-                      <Car size={32} className="text-[#007AFF]" />
-                    </div>
-                  </div>
+                <div className="relative h-64 w-full overflow-hidden">
+                  <LiveRideMap
+                    pickup={activePickupPoint}
+                    dropoff={activeDropoffPoint}
+                    driver={driverLivePoint}
+                  />
                   <div className="absolute right-6 top-6">
-                    <span className={`rounded-full px-4 py-2 text-[12px] font-black uppercase tracking-wider shadow-md backdrop-blur-md ${statusColors[activeRide.status]}`}>{activeRide.status}</span>
+                    <span className={`rounded-full px-4 py-2 text-[12px] font-black uppercase tracking-wider shadow-md backdrop-blur-md ${statusColors[activeRide.status] || 'bg-white/90 text-[#1c2731]'}`}>{activeRideUi.badge}</span>
                   </div>
                 </div>
 
                 <div className="p-8 sm:p-10">
+                  <p className="mb-4 text-[15px] font-bold leading-snug text-[#1c2731]">{activeRideUi.headline}</p>
+                  {activeRideUi.subtitle ? <p className="mb-6 text-[14px] font-medium leading-relaxed text-[#607282]">{activeRideUi.subtitle}</p> : null}
+                  {String(activeRide.status || '').toLowerCase() === 'requested' ? (
+                    <div className="mb-8 rounded-[1.25rem] bg-[#f8fafc] p-4 text-[13px] leading-relaxed text-[#607282] ring-1 ring-[#d9e3ec]">
+                      <p className="font-bold text-[#1c2731]">Matching</p>
+                      <p className="mt-1">{DRIVER_MATCHING_EXPLAINER}</p>
+                      {matchingHint?.eligibleDriversNearPickup != null ? (
+                        <p className="mt-2 font-semibold text-[#007AFF]">
+                          When you booked: {matchingHint.eligibleDriversNearPickup} eligible driver{matchingHint.eligibleDriversNearPickup === 1 ? '' : 's'} near pickup
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <div className="mb-8">
                     <p className="text-[12px] font-extrabold uppercase tracking-widest text-[#8a9aab]">Route Tracking</p>
                     <div className="mt-4 space-y-6">
@@ -711,7 +1058,7 @@ export default function RiderAppPage() {
                 <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex-1">
                     <div className="mb-3 flex items-center gap-3">
-                      <span className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider ${statusColors[ride.status] || 'bg-slate-100 text-[#607282]'}`}>{ride.status}</span>
+                      <span className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider ${statusColors[ride.status] || 'bg-slate-100 text-[#607282]'}`}>{riderFacingRideUI(ride.status).badge}</span>
                       <span className="text-[12px] font-bold text-[#8a9aab]">{new Date(ride.createdAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                     </div>
                     <div className="space-y-1.5">
@@ -722,26 +1069,26 @@ export default function RiderAppPage() {
                         return bl ? <p className="text-[13px] font-bold text-[#007AFF]">{bl}</p> : null
                       })()}
                       {String(ride.status || '').toLowerCase() === 'completed' ? (
-                        <div className="pt-2">
-                          <p className="mb-2 text-[11px] font-extrabold uppercase tracking-widest text-[#8a9aab]">Review driver</p>
-                          {ride.riderRating ? (
-                            <p className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-[12px] font-bold text-amber-600 ring-1 ring-amber-200">
-                              <Star size={13} fill="currentColor" /> Rated {Number(ride.riderRating).toFixed(0)}/5
-                            </p>
+                        <div className="pt-3">
+                          {rideNeedsPayment(ride) ? (
+                            <p className="mb-2 text-[12px] font-bold text-[#ff9500]">Payment due · open summary to pay with Cash, bKash, Nagad, or Card.</p>
                           ) : (
-                            <div className="flex flex-wrap gap-2">
-                              {[1, 2, 3, 4, 5].map((n) => (
-                                <button
-                                  key={n}
-                                  onClick={() => rateDriver(ride._id || ride.id, n)}
-                                  disabled={ratingBusyRideId === String(ride._id || ride.id)}
-                                  className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-[12px] font-bold text-[#1c2731] ring-1 ring-[#d9e3ec] transition-all hover:bg-[#f8fafc]"
-                                >
-                                  <Star size={13} /> {n}
-                                </button>
-                              ))}
-                            </div>
+                            <p className="mb-2 text-[13px] font-bold text-[#34c759]">
+                              Paid {ride.paymentMethod ? `· ${paymentMethodLabel(ride.paymentMethod)}` : ''} · thank you
+                            </p>
                           )}
+                          {(ride.riderRating || ride.riderFeedback) ? (
+                            <p className="mb-2 text-[12px] font-medium text-[#607282]">
+                              Feedback saved{ride.riderRating ? ` · ${Number(ride.riderRating)}/5` : ''}
+                            </p>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => openTripSummary(ride)}
+                            className="mt-1 inline-flex items-center gap-2 rounded-full bg-[#0f766e] px-5 py-2.5 text-[12px] font-black uppercase tracking-wide text-white shadow-sm ring-1 ring-[#0f766e]/30 transition-all hover:bg-[#115e59]"
+                          >
+                            <FileText size={15} /> Trip summary
+                          </button>
                         </div>
                       ) : null}
                     </div>
@@ -770,7 +1117,7 @@ export default function RiderAppPage() {
                   </div>
                   <div>
                     <p className="text-2xl font-black text-[#1c2731]">৳{Number(p.amount || 0).toLocaleString()}</p>
-                    <p className="text-[12px] font-extrabold uppercase tracking-widest text-[#8a9aab] pl-1">{(p.method || 'cash')}</p>
+                    <p className="text-[12px] font-extrabold uppercase tracking-widest text-[#8a9aab] pl-1">{paymentMethodLabel(p.method)}</p>
                   </div>
                 </div>
                 <span className={`rounded-full px-4 py-1.5 text-[12px] font-black uppercase tracking-wider ${p.status === 'paid' ? 'bg-green-50 text-[#34c759] ring-1 ring-green-500/30' : 'bg-red-50 text-[#ff3b30] ring-1 ring-red-500/30'}`}>{p.status}</span>
@@ -838,6 +1185,21 @@ export default function RiderAppPage() {
         )}
 
       </main>
+
+      {summaryRide ? (
+        <RiderTripSummaryModal
+          ride={summaryRide}
+          onClose={() => setSummaryRide(null)}
+          onPay={payForRide}
+          onSubmitFeedback={submitRideFeedback}
+          paymentBusyRideId={paymentBusyRideId}
+          feedbackBusyRideId={feedbackBusyRideId}
+          onReorder={() => {
+            setSummaryRide(null)
+            setView('book')
+          }}
+        />
+      ) : null}
 
       {/* Mobile Bottom Bar Overlay */}
       <div className="fixed bottom-0 left-0 z-50 w-full bg-white/80 pb-safe pt-2 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl sm:hidden">

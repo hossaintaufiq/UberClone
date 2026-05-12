@@ -14,7 +14,7 @@ app.set("io", io);
 io.on("connection", (socket) => {
   socket.on("join:ride", (rideId) => socket.join(`ride:${rideId}`));
   socket.on("driver:location", ({ rideId, lat, lng, driverId }) => {
-    io.to(`ride:${rideId}`).emit("driver:location", { lat, lng, driverId });
+    io.to(`ride:${rideId}`).emit("driver:location", { rideId, lat, lng, driverId });
   });
   socket.on("ride:status", ({ rideId, status }) => {
     io.to(`ride:${rideId}`).emit("ride:status", { status });

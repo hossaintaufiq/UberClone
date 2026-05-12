@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import L from 'leaflet'
-import { MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet'
+import { MapContainer, Marker, Polyline, TileLayer, useMap } from 'react-leaflet'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
@@ -24,6 +24,22 @@ const dropoffPinIcon = L.divIcon({
   iconSize: [18, 18],
   iconAnchor: [9, 9],
 })
+
+const driverPinIcon = L.divIcon({
+  className: 'leaflet-marker-driver-wrap',
+  html: '<div style="width:16px;height:16px;background:#007AFF;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 10px rgba(0,122,255,.45)"></div>',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+})
+
+function RecenterOnDriver({ driver }) {
+  const map = useMap()
+  useEffect(() => {
+    if (!driver?.lat || !driver?.lng) return
+    map.flyTo([driver.lat, driver.lng], Math.max(map.getZoom(), 14), { duration: 0.6 })
+  }, [driver?.lat, driver?.lng, map])
+  return null
+}
 
 /** Avoid Leaflet "container already initialized" under React StrictMode dev double-mount. */
 function MapMountGate({ children }) {
@@ -98,10 +114,11 @@ export function LiveRideMap({ pickup, dropoff, driver }) {
       <MapMountGate>
         <MapContainer center={center} zoom={12} style={{ height: '100%', width: '100%' }}>
           <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          {pickup ? <Marker position={[pickup.lat, pickup.lng]} /> : null}
-          {dropoff ? <Marker position={[dropoff.lat, dropoff.lng]} /> : null}
-          {driver ? <Marker position={[driver.lat, driver.lng]} /> : null}
+          {pickup ? <Marker position={[pickup.lat, pickup.lng]} icon={pickupPinIcon} /> : null}
+          {dropoff ? <Marker position={[dropoff.lat, dropoff.lng]} icon={dropoffPinIcon} /> : null}
+          {driver ? <Marker position={[driver.lat, driver.lng]} icon={driverPinIcon} /> : null}
           {line.length ? <Polyline positions={line} pathOptions={{ color: '#3B82F6', weight: 4 }} /> : null}
+          <RecenterOnDriver driver={driver} />
         </MapContainer>
       </MapMountGate>
     </div>
